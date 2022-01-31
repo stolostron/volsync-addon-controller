@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"strings"
 
 	"github.com/openshift/library-go/pkg/assets"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
@@ -9,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
@@ -27,7 +29,7 @@ const (
 	operatorName               = "volsync"
 	operatorSuggestedNamespace = "volsync-system"
 	catalogSource              = "volsyncoperatorcatalog" //FIXME:
-	catalogSourceNamespace     = "openshift-marketplace"  //TODO: this is hardcoded to openshift
+	catalogSourceNamespace     = "openshift-marketplace"
 	//globalOperatorNamespace    = "openshift-operators"    //TODO: doing this will work with openshift only, is this an issue?
 	channel             = "alpha"          //FIXME:
 	startingCSV         = "volsync.v0.0.1" //FIXME: how to determine this? hardcoded per release?
@@ -35,7 +37,11 @@ const (
 )
 
 const (
-	annotationStartingCSVOverride = "operator.startingCSV"
+	annotationStartingCSVOverride     = "operator.startingCSV"
+	addonAvailabilityReasonDeployed   = "AddonDeployed"
+	addonAvailabilityReasonSkipped    = "AddonNotInstalled"
+	addonAvailabilityReasonInstalling = "AddonInstalling"
+	addonAvailabilityReasonFailed     = "AddonInstallFailed"
 )
 
 func init() {
@@ -74,14 +80,17 @@ var manifestFilesAllNamespacesInstallIntoSuggestedNamespace = []string{
 
 // Another agent with registration enabled.
 type volsyncAgent struct {
-	//kubeConfig *rest.Config
-	//recorder   events.Recorder
-	//agentName string
+	kubeConfig *rest.Config
 }
 
 var _ agent.AgentAddon = &volsyncAgent{}
 
 func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster, addon *addonapiv1alpha1.ManagedClusterAddOn) ([]runtime.Object, error) {
+	if !clusterSupportsAddonInstall(cluster) {
+		klog.InfoS("Cluster is not OpenShift, not deploying addon", "addonName", addonName, "cluster", cluster.GetName())
+		return []runtime.Object{}, nil
+	}
+
 	objects := []runtime.Object{}
 	for _, file := range getManifestFileList(addon) {
 		object, err := loadManifestFromFile(file, cluster, addon)
@@ -95,23 +104,16 @@ func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster, addon *addon
 
 func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
-		AddonName: addonName,
-		//TODO: put this back - InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
-
-		/*
-			Registration: &agent.RegistrationOption{
-				CSRConfigurations: agent.KubeClientSignerConfigurations("helloworld", h.agentName),
-				CSRApproveCheck:   agent.ApprovalAllCSRs,
-				PermissionConfig:  h.setupAgentPermissions,
-			},
-			InstallStrategy: agent.InstallAllStrategy("default"),
-		*/
+		AddonName:       addonName,
+		InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
+		HealthProber: &agent.HealthProber{
+			Type: agent.HealthProberTypeNone,
+		},
 	}
 }
 
-func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster /*TODO: remove*/, addon *addonapiv1alpha1.ManagedClusterAddOn) (runtime.Object, error) {
+func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster, addon *addonapiv1alpha1.ManagedClusterAddOn) (runtime.Object, error) {
 	manifestConfig := struct {
-		//KubeConfigSecret      string
 		OperatorName           string
 		InstallNamespace       string
 		OperatorGroupSpec      string
@@ -120,10 +122,7 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster /*TODO:
 		InstallPlanApproval    string
 		Channel                string
 		StartingCSV            string
-		//ClusterName                string //TODO: remove this? seems like we don't need
-		//Image            string
 	}{
-		//KubeConfigSecret:      fmt.Sprintf("%s-hub-kubeconfig", addon.Name),
 		OperatorName:           operatorName,
 		InstallNamespace:       getInstallNamespace(addon),
 		CatalogSource:          catalogSource,
@@ -131,8 +130,6 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster /*TODO:
 		InstallPlanApproval:    installPlanApproval,
 		Channel:                channel,
 		StartingCSV:            getStartingCSV(addon),
-		//ClusterName:                cluster.Name,
-		//Image:            image,
 	}
 
 	template, err := fs.ReadFile(file)
@@ -167,4 +164,12 @@ func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
 	}
 
 	return startingCSV // This is the version we build/ship with
+}
+
+func clusterSupportsAddonInstall(cluster *clusterv1.ManagedCluster) bool {
+	vendor, ok := cluster.Labels["vendor"]
+	if !ok || !strings.EqualFold(vendor, "OpenShift") {
+		return false
+	}
+	return true
 }

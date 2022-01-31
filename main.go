@@ -73,8 +73,21 @@ func runController(ctx context.Context, controllerContext *controllercmd.Control
 	if err != nil {
 		return err
 	}
-	mgr.AddAgent(&volsyncAgent{})
-	mgr.Start(ctx)
+	//mgr.AddAgent(&volsyncAgent{})
+	mgr.AddAgent(&volsyncAgent{controllerContext.KubeConfig})
+	err = mgr.Start(ctx)
+	if err != nil {
+		return err
+	}
+
+	// start availability status update controller
+	statusUpdaterController := addonStatusUpdaterController{
+		config: controllerContext.KubeConfig,
+	}
+	err = statusUpdaterController.Start(ctx)
+	if err != nil {
+		return err
+	}
 
 	<-ctx.Done()
 

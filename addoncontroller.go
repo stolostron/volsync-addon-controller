@@ -7,6 +7,7 @@ import (
 	"github.com/openshift/library-go/pkg/assets"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -104,8 +105,8 @@ func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster, addon *addon
 
 func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
-		AddonName:       addonName,
-		InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
+		AddonName: addonName,
+		//InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
 		HealthProber: &agent.HealthProber{
 			Type: agent.HealthProberTypeNone,
 		},
@@ -172,4 +173,8 @@ func clusterSupportsAddonInstall(cluster *clusterv1.ManagedCluster) bool {
 		return false
 	}
 	return true
+}
+
+func clusterIsAvailable(cluster *clusterv1.ManagedCluster) bool {
+	return meta.IsStatusConditionTrue(cluster.Status.Conditions, clusterv1.ManagedClusterConditionAvailable)
 }

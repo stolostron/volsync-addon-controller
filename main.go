@@ -84,7 +84,7 @@ func runController(ctx context.Context, controllerContext *controllercmd.Control
 	statusUpdaterController := addonStatusUpdaterController{
 		config: controllerContext.KubeConfig,
 	}
-	err = statusUpdaterController.Start(ctx)
+	err = statusUpdaterController.Start(ctx, controllerContext.EventRecorder)
 	if err != nil {
 		return err
 	}

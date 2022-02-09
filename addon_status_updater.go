@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"time"
 
 	"github.com/openshift/library-go/pkg/controller/factory"
@@ -13,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
@@ -41,12 +39,7 @@ type addonStatusUpdaterController struct {
 	manifestWorkLister        worklister.ManifestWorkLister
 }
 
-func (a *addonStatusUpdaterController) Start(ctx context.Context) error {
-	kubeClient, err := kubernetes.NewForConfig(a.config)
-	if err != nil {
-		return err
-	}
-
+func (a *addonStatusUpdaterController) Start(ctx context.Context, evtRecorder events.Recorder) error {
 	addonClient, err := addonv1alpha1client.NewForConfig(a.config)
 	if err != nil {
 		return err
@@ -61,18 +54,6 @@ func (a *addonStatusUpdaterController) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	namespace, err := a.getComponentNamespace()
-	if err != nil {
-		klog.Warningf("unable to identify the current namespace for events: %v", err)
-	}
-	controllerRef, err := events.GetControllerReferenceForCurrentPod(ctx, kubeClient, namespace, nil)
-	if err != nil {
-		klog.Warningf("unable to get owner reference (falling back to namespace): %v", err)
-	}
-
-	eventRecorder := events.NewKubeRecorder(kubeClient.CoreV1().Events(namespace), "addon", controllerRef).
-		WithComponentSuffix(statusControllerName)
 
 	addonInformers := addoninformers.NewSharedInformerFactory(addonClient, 10*time.Minute)
 	workInformers := workv1informers.NewSharedInformerFactoryWithOptions(workClient, 10*time.Minute,
@@ -121,7 +102,8 @@ func (a *addonStatusUpdaterController) Start(ctx context.Context) error {
 			},
 			workInformers.Work().V1().ManifestWorks().Informer(),
 		).
-		WithSync(a.sync).ToController(statusControllerName, eventRecorder)
+		//ResyncEvery(10*time.Minute).
+		WithSync(a.sync).ToController(statusControllerName, evtRecorder.WithComponentSuffix(statusControllerName))
 
 	go addonInformers.Start(ctx.Done())
 	go workInformers.Start(ctx.Done())
@@ -138,16 +120,14 @@ func (a *addonStatusUpdaterController) Start(ctx context.Context) error {
 }
 
 func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	key := syncCtx.QueueKey()
-	klog.Infof("## STATUS UPDATE CONTROLLER - Reconciling addon deploy %q", key) //TODO: fix msg
-
-	managedClusterName, aName, err := cache.SplitMetaNamespaceKey(key)
+	mykey := syncCtx.QueueKey()
+	managedClusterName, aName, err := cache.SplitMetaNamespaceKey(mykey)
 	if err != nil {
 		// ignore addon whose key is not in format: namespace/name
 		return nil
 	}
 	if aName != addonName {
-		klog.Infof("Addon %q is NOT the expected addon %s", key, addonName)
+		klog.Infof("Addon %q is NOT the expected addon %s", mykey, addonName)
 		return nil
 	}
 
@@ -180,6 +160,12 @@ func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory
 		return a.updateAddonAvailabilityStatus(ctx, managedClusterAddon,
 			metav1.ConditionFalse, addonAvailabilityReasonSkipped, "Install on cluster not supported",
 			metav1.ConditionFalse, "NotInstalling", "Install on cluster not supported.")
+	}
+
+	if !clusterIsAvailable(managedCluster) {
+		// Do not try to update the status - register controller will already be updating status
+		klog.InfoS("Cluster is not available, not updating addon status", "cluster", managedCluster.GetName())
+		return nil
 	}
 
 	// Check manifest work status - and set the status on the ManagedClusterAddon
@@ -215,20 +201,10 @@ func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory
 	return nil
 }
 
-func (a *addonStatusUpdaterController) getComponentNamespace() (string, error) {
-	nsBytes, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err != nil {
-		return "open-cluster-management", err
-	}
-	return string(nsBytes), nil
-}
-
 func (a *addonStatusUpdaterController) updateAddonAvailabilityStatus(ctx context.Context,
 	managedClusterAddon *addonapiv1alpha1.ManagedClusterAddOn,
 	availabilityStatus metav1.ConditionStatus, availabilityReason string, availabilityMessage string,
 	progressingStatus metav1.ConditionStatus, progressingReason string, progressingMessage string) error {
-
-	klog.InfoS("Updating status for addon to", "conditionStatus", "conditionStatus") //TODO: REMOVE
 
 	managedClusterAddonCopy := managedClusterAddon.DeepCopy()
 
@@ -248,7 +224,7 @@ func (a *addonStatusUpdaterController) updateAddonAvailabilityStatus(ctx context
 	}
 	meta.SetStatusCondition(&managedClusterAddonCopy.Status.Conditions, progressingCondition)
 
-	if equality.Semantic.DeepEqual(managedClusterAddonCopy.Status, managedClusterAddon.Status) {
+	if equality.Semantic.DeepEqual(managedClusterAddonCopy.Status.Conditions, managedClusterAddon.Status.Conditions) {
 		return nil // no need to update
 	}
 

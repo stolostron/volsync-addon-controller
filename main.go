@@ -29,6 +29,8 @@ func main() {
 	defer logs.FlushLogs()
 
 	command := newCommand()
+	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
+
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
@@ -74,7 +76,11 @@ func runController(ctx context.Context, controllerContext *controllercmd.Control
 		return err
 	}
 	//mgr.AddAgent(&volsyncAgent{})
-	mgr.AddAgent(&volsyncAgent{controllerContext.KubeConfig})
+	err = mgr.AddAgent(&volsyncAgent{controllerContext.KubeConfig})
+	if err != nil {
+		return err
+	}
+
 	err = mgr.Start(ctx)
 	if err != nil {
 		return err

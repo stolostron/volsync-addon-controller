@@ -10,9 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
@@ -46,9 +48,9 @@ const (
 )
 
 func init() {
-	scheme.AddToScheme(genericScheme)
-	operatorsv1.AddToScheme(genericScheme)
-	operatorsv1alpha1.AddToScheme(genericScheme)
+	utilruntime.Must(scheme.AddToScheme(genericScheme))
+	utilruntime.Must(operatorsv1.AddToScheme(genericScheme))
+	utilruntime.Must(operatorsv1alpha1.AddToScheme(genericScheme))
 }
 
 //go:embed manifests

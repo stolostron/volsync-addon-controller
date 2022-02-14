@@ -20,6 +20,12 @@ import (
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 )
 
+//
+// The main addon controller - uses the addon framework to deploy the volsync
+// operator on a managed cluster if a ManagedClusterAddon CR exists in the
+// cluster namespace on the hub.
+//
+
 var (
 	genericScheme = runtime.NewScheme()
 	genericCodecs = serializer.NewCodecFactory(genericScheme)
@@ -28,11 +34,11 @@ var (
 
 // Change these values to suit your operator
 const (
-	addonName                  = "volsync"
-	operatorName               = "volsync"
-	operatorSuggestedNamespace = "volsync-system"
-	catalogSource              = "volsyncoperatorcatalog" //FIXME:
-	catalogSourceNamespace     = "openshift-marketplace"
+	addonName              = "volsync"
+	operatorName           = "volsync"
+	addonInstallNamespace  = "volsync-system"         // For volsync this is the "suggested namespace" in the CSV
+	catalogSource          = "volsyncoperatorcatalog" //FIXME:
+	catalogSourceNamespace = "openshift-marketplace"
 	//globalOperatorNamespace    = "openshift-operators"    //TODO: doing this will work with openshift only, is this an issue?
 	channel             = "alpha"          //FIXME:
 	startingCSV         = "volsync.v0.0.1" //FIXME: how to determine this? hardcoded per release?
@@ -93,6 +99,8 @@ func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster, addon *addon
 		klog.InfoS("Cluster is not OpenShift, not deploying addon", "addonName", addonName, "cluster", cluster.GetName())
 		return []runtime.Object{}, nil
 	}
+
+	//TODO: if install namespace is openshift-operators, handle - or if not (and not volsync-system) figure out how to error out
 
 	objects := []runtime.Object{}
 	for _, file := range getManifestFileList(addon) {

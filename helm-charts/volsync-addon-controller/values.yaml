@@ -1,0 +1,18 @@
+org: stolostron
+
+global:
+  pullPolicy: Always
+  imageOverrides:
+    volsync_addon_controller: "quay.io/tflower/volsync-addon-controller:latest"
+
+arch:
+  - amd64
+  - ppc64le
+  - s390x
+
+pullSecret: null
+
+hubconfig:
+  nodeSelector: null
+  replicaCount: 1
+  proxyConfigs: {}

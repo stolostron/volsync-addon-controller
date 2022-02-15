@@ -1,4 +1,4 @@
-package main
+package controllers
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
 	"open-cluster-management.io/addon-framework/pkg/addonmanager/constants"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
@@ -33,7 +34,7 @@ import (
 // this controller is necessary to manage the status of the ManagedClusterAddOn CR.
 //
 
-const statusControllerName = "addon-status-update-controller"
+const statusControllerName = "volsync-addon-status-update-controller"
 
 type addonStatusUpdaterController struct {
 	addonClient               addonv1alpha1client.Interface
@@ -206,9 +207,4 @@ func (a *addonStatusUpdaterController) updateAddonAvailabilityStatus(ctx context
 	_, err := a.addonClient.AddonV1alpha1().ManagedClusterAddOns(managedClusterAddonCopy.Namespace).UpdateStatus(
 		ctx, managedClusterAddonCopy, metav1.UpdateOptions{})
 	return err
-}
-
-// This is hardcoded but dependent on the value set by the addon framework
-func getAddonManifestWorkName() string {
-	return fmt.Sprintf("addon-%s-deploy", addonName)
 }

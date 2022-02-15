@@ -1,13 +1,11 @@
-package main
+package controllers
 
 import (
 	"embed"
-	"strings"
 
 	"github.com/openshift/library-go/pkg/assets"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -175,16 +173,4 @@ func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
 	}
 
 	return startingCSV // This is the version we build/ship with
-}
-
-func clusterSupportsAddonInstall(cluster *clusterv1.ManagedCluster) bool {
-	vendor, ok := cluster.Labels["vendor"]
-	if !ok || !strings.EqualFold(vendor, "OpenShift") {
-		return false
-	}
-	return true
-}
-
-func clusterIsAvailable(cluster *clusterv1.ManagedCluster) bool {
-	return meta.IsStatusConditionTrue(cluster.Status.Conditions, clusterv1.ManagedClusterConditionAvailable)
 }

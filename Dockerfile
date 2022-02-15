@@ -12,14 +12,14 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY *.go .
-COPY manifests/ manifests/
+COPY main.go .
+COPY controllers/ controllers/
 
 # Build
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
 #ARG VERSION="(unknown)" #FIXME: remove
-RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller .
+RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller main.go
 
 # Final container
 FROM registry.access.redhat.com/ubi8-minimal

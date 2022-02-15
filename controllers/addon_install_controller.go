@@ -1,4 +1,4 @@
-package main
+package controllers
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
 	addoninformerv1alpha1 "open-cluster-management.io/api/client/addon/informers/externalversions/addon/v1alpha1"
@@ -29,7 +30,7 @@ import (
 // trigger the addoncontroller to install it on that managed cluster).
 //
 
-const installControllerName = "addon-install-controller"
+const installControllerName = "volsync-addon-install-controller"
 
 // Put this label on a managed cluster with value of "true" to choose to have the addon installed automatically
 // (this controller will create a ManagedClusterAddon for it)

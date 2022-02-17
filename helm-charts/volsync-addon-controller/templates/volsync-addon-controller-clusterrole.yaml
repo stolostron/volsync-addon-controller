@@ -1,0 +1,54 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.org }}:{{ .Release.Name }}:clusterrole
+  labels:
+    app: {{ template "volsync-addon-controller.name" . }}
+    chart: {{ template "volsync-addon-controller.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/name: {{ template "volsync-addon-controller.name" . }}
+    helm.sh/chart: {{ template "volsync-addon-controller.chart" . }}
+    component: volsync-addon-controller-clusterrole
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["configmaps", "events"]
+    verbs: ["get", "list", "watch", "create", "update", "delete", "deletecollection", "patch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["subjectaccessreviews"]
+    verbs: ["get", "create"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["certificatesigningrequests", "certificatesigningrequests/approval"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["signers"]
+    verbs: ["approve"]
+  - apiGroups: ["cluster.open-cluster-management.io"]
+    resources: ["managedclusters"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["work.open-cluster-management.io"]
+    resources: ["manifestworks"]
+    verbs: ["create", "update", "get", "list", "watch", "delete", "deletecollection", "patch"]
+  - apiGroups: ["addon.open-cluster-management.io"]
+    resources: ["managedclusteraddons/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["addon.open-cluster-management.io"]
+    resources: ["clustermanagementaddons"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["addon.open-cluster-management.io"]
+    resources: ["managedclusteraddons"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: ["addon.open-cluster-management.io"]
+    resources: ["managedclusteraddons/status"]
+    verbs: ["update", "patch"]

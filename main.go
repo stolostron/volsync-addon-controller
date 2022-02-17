@@ -9,14 +9,15 @@ import (
 
 	goflag "flag"
 
-	"github.com/openshift/library-go/pkg/controller/controllercmd"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
+
+	"github.com/openshift/library-go/pkg/controller/controllercmd"
 	"open-cluster-management.io/addon-framework/pkg/version"
 
-	"open-cluster-management.io/addon-framework/pkg/addonmanager"
+	"github.com/stolostron/volsync-addon-controller/controllers"
 )
 
 func main() {
@@ -62,7 +63,7 @@ func newCommand() *cobra.Command {
 
 func newControllerCommand() *cobra.Command {
 	cmd := controllercmd.
-		NewControllerCommandConfig("volsync-addon-controller", version.Get(), runController).
+		NewControllerCommandConfig("volsync-addon-controller", version.Get(), runControllers).
 		NewCommand()
 	cmd.Use = "controller"
 	cmd.Short = "Start the volsync addon controller"
@@ -70,32 +71,6 @@ func newControllerCommand() *cobra.Command {
 	return cmd
 }
 
-func runController(ctx context.Context, controllerContext *controllercmd.ControllerContext) error {
-	mgr, err := addonmanager.New(controllerContext.KubeConfig)
-	if err != nil {
-		return err
-	}
-	//mgr.AddAgent(&volsyncAgent{})
-	err = mgr.AddAgent(&volsyncAgent{controllerContext.KubeConfig})
-	if err != nil {
-		return err
-	}
-
-	err = mgr.Start(ctx)
-	if err != nil {
-		return err
-	}
-
-	// start availability status update controller
-	statusUpdaterController := addonStatusUpdaterController{
-		config: controllerContext.KubeConfig,
-	}
-	err = statusUpdaterController.Start(ctx, controllerContext.EventRecorder)
-	if err != nil {
-		return err
-	}
-
-	<-ctx.Done()
-
-	return nil
+func runControllers(ctx context.Context, controllerContext *controllercmd.ControllerContext) error {
+	return controllers.StartControllers(ctx, controllerContext.KubeConfig)
 }

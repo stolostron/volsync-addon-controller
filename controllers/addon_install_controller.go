@@ -36,6 +36,10 @@ const installControllerName = "volsync-addon-install-controller"
 // (this controller will create a ManagedClusterAddon for it)
 const AddonInstallClusterLabel = "storage.stolostron/volsync" //FIXME: confirm the label we want to use
 
+// Annotation to indicate the ManagedClusterAddon was created by this controller
+const MCAddonInstallCreatedByAnnotation = "open-cluster-management/created-via"
+const MCAddonInstallCreatedByAnnotationValue = addonName + "-addon-controller"
+
 type addonInstallController struct {
 	addonClient               addonv1alpha1client.Interface
 	clusterClient             clusterv1client.Interface
@@ -154,6 +158,9 @@ func (c *addonInstallController) applyAddon(ctx context.Context, managedClusterN
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      addonName,
 				Namespace: managedClusterName,
+				Annotations: map[string]string{
+					MCAddonInstallCreatedByAnnotation: MCAddonInstallCreatedByAnnotationValue,
+				},
 			},
 			Spec: addonapiv1alpha1.ManagedClusterAddOnSpec{
 				InstallNamespace: addonInstallNamespace,
@@ -170,14 +177,20 @@ func (c *addonInstallController) applyAddon(ctx context.Context, managedClusterN
 }
 
 func (c *addonInstallController) removeAddon(ctx context.Context, managedClusterName string) error {
-	_, err := c.managedClusterAddonLister.ManagedClusterAddOns(managedClusterName).Get(addonName)
+	mcAddon, err := c.managedClusterAddonLister.ManagedClusterAddOns(managedClusterName).Get(addonName)
 	if err != nil {
 		// Assume ManagedClusterAddon does not exist
 		return nil
 	}
 
-	klog.InfoS("Removing ManagedClusterAddon", "addonName", addonName,
-		"managedClusterName", managedClusterName)
-	return c.addonClient.AddonV1alpha1().ManagedClusterAddOns(managedClusterName).Delete(ctx,
-		addonName, metav1.DeleteOptions{})
+	if mcAddon != nil &&
+		mcAddon.Annotations[MCAddonInstallCreatedByAnnotation] == MCAddonInstallCreatedByAnnotationValue {
+		// Only delete the MCH if this controller previously created it (check by looking at the annotation)
+		klog.InfoS("Removing ManagedClusterAddon", "addonName", addonName,
+			"managedClusterName", managedClusterName)
+		return c.addonClient.AddonV1alpha1().ManagedClusterAddOns(managedClusterName).Delete(ctx,
+			addonName, metav1.DeleteOptions{})
+	}
+
+	return nil
 }

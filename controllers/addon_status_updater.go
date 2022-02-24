@@ -134,7 +134,7 @@ func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory
 		klog.InfoS("Cluster is not Openshift, no install to report on cluster", "cluster", managedCluster.GetName())
 
 		return a.updateAddonAvailabilityStatus(ctx, managedClusterAddon,
-			metav1.ConditionFalse, addonAvailabilityReasonSkipped, "Install on cluster not supported",
+			metav1.ConditionFalse, AddonAvailabilityReasonSkipped, "Install on cluster not supported",
 			metav1.ConditionFalse, "NotInstalling", "Install on cluster not supported.")
 	}
 
@@ -157,7 +157,7 @@ func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory
 	// Manifestwork is available - set availability status condition of managedclusteraddon to true
 	if meta.IsStatusConditionTrue(addonManifestWork.Status.Conditions, workapiv1.WorkAvailable) {
 		return a.updateAddonAvailabilityStatus(ctx, managedClusterAddon,
-			metav1.ConditionTrue, addonAvailabilityReasonDeployed, "add-on is available.",
+			metav1.ConditionTrue, AddonAvailabilityReasonDeployed, "add-on is available.",
 			metav1.ConditionFalse, "ManifestWorkApplied", "All manifests are installed.")
 	}
 

@@ -24,7 +24,6 @@ RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller main.go
 # Final container
 FROM registry.access.redhat.com/ubi8-minimal
 
-# Needs openssh in order to generate ssh keys
 RUN microdnf --refresh update && \
     microdnf clean all
 

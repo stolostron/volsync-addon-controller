@@ -22,7 +22,7 @@ docker-push: ## Push docker image with the manager.
 .PHONY: test
 TEST_ARGS ?= -progress -randomize-all -randomize-suites -slow-spec-threshold=30s -p -cover -coverprofile=cover.out -output-dir=.
 TEST_PACKAGES ?= ./...
-test: lint helm-lint envtest ginkgo ## Run tests.
+test: lint envtest ginkgo ## Run tests.
 	-rm -f cover.out
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) $(TEST_ARGS) $(TEST_PACKAGES)
 

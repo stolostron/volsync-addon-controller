@@ -45,8 +45,8 @@ const (
 
 const (
 	annotationStartingCSVOverride     = "operator.startingCSV"
-	addonAvailabilityReasonDeployed   = "AddonDeployed"
-	addonAvailabilityReasonSkipped    = "AddonNotInstalled"
+	AddonAvailabilityReasonDeployed   = "AddonDeployed"
+	AddonAvailabilityReasonSkipped    = "AddonNotInstalled"
 	addonAvailabilityReasonInstalling = "AddonInstalling"
 	addonAvailabilityReasonFailed     = "AddonInstallFailed"
 )

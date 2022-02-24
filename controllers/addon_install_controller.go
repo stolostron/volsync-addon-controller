@@ -30,11 +30,33 @@ import (
 // trigger the addoncontroller to install it on that managed cluster).
 //
 
-const installControllerName = "volsync-addon-install-controller"
+const (
+	installControllerName = "volsync-addon-install-controller"
+
+	// TODO: make sure this is ok - just testing atm
+	AddonInstallClusterLabel                 = "feature.open-cluster-management.io/addon-" + addonName
+	AddonInstallClusterLabelValueUninstalled = "uninstalled" // Default value, no install is necesary
+	AddonInstallClusterLabelValueUninstall   = "uninstall"   // will trigger this controller to delete the corresponding ManagedClusterAddon
+	AddonInstallClusterLabelValueInstall     = "install"     // will trigger this controller to create the correspongind ManagedClusterAddOn
+	AddonInstallClusterLabelValueInstalling  = "installing"  // controller is currenly installing the addon (expected to be updated to available later by the lease controller)
+
+	DefaultAddonInstallClusterLabelValue = AddonInstallClusterLabelValueUninstalled // This controller will set the label to this by default
+)
 
 // Put this label on a managed cluster with value of "true" to choose to have the addon installed automatically
 // (this controller will create a ManagedClusterAddon for it)
-const AddonInstallClusterLabel = "storage.stolostron/volsync" //FIXME: confirm the label we want to use
+//const AddonInstallClusterLabel = "storage.stolostron/volsync" //FIXME: confirm the label we want to use
+//TODO: - this label "feature.open-cluster-management.io/addon-volsync=available"
+// VALUES:
+// - uninstalled (default)
+// - uninstall (to uninstall it)
+// - install (to install it)
+// - installing (set by controller)
+// - available (already done by "lease" controller)
+
+// Annotation to indicate the ManagedClusterAddon was created by this controller
+const MCAddonInstallCreatedByAnnotation = "open-cluster-management/created-via"
+const MCAddonInstallCreatedByAnnotationValue = addonName + "-addon-controller"
 
 type addonInstallController struct {
 	addonClient               addonv1alpha1client.Interface
@@ -123,10 +145,12 @@ func (a *addonInstallController) ensureAddonInstallClusterLabel(ctx context.Cont
 	// Put the label on the managed cluster if it isn't there already
 	_, found := managedCluster.Labels[AddonInstallClusterLabel]
 	if !found {
-		klog.InfoS("Adding addon label to managed cluster", "addonLabel", AddonInstallClusterLabel+"=false",
+		// Add the label with default value
+		managedCluster.Labels[AddonInstallClusterLabel] = DefaultAddonInstallClusterLabelValue
+		klog.InfoS("Adding addon label to managed cluster",
+			"addonLabel", AddonInstallClusterLabel,
+			"addonLabelValue", managedCluster.Labels[AddonInstallClusterLabel],
 			"managedClusterName", managedCluster.GetName())
-		// Add the label with default value "false"
-		managedCluster.Labels[AddonInstallClusterLabel] = "false"
 		_, err := a.clusterClient.ClusterV1().ManagedClusters().Update(ctx, managedCluster, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -154,6 +178,9 @@ func (c *addonInstallController) applyAddon(ctx context.Context, managedClusterN
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      addonName,
 				Namespace: managedClusterName,
+				Annotations: map[string]string{
+					MCAddonInstallCreatedByAnnotation: MCAddonInstallCreatedByAnnotationValue,
+				},
 			},
 			Spec: addonapiv1alpha1.ManagedClusterAddOnSpec{
 				InstallNamespace: addonInstallNamespace,
@@ -170,14 +197,18 @@ func (c *addonInstallController) applyAddon(ctx context.Context, managedClusterN
 }
 
 func (c *addonInstallController) removeAddon(ctx context.Context, managedClusterName string) error {
-	_, err := c.managedClusterAddonLister.ManagedClusterAddOns(managedClusterName).Get(addonName)
+	mcAddon, err := c.managedClusterAddonLister.ManagedClusterAddOns(managedClusterName).Get(addonName)
 	if err != nil {
 		// Assume ManagedClusterAddon does not exist
 		return nil
 	}
-
-	klog.InfoS("Removing ManagedClusterAddon", "addonName", addonName,
-		"managedClusterName", managedClusterName)
-	return c.addonClient.AddonV1alpha1().ManagedClusterAddOns(managedClusterName).Delete(ctx,
-		addonName, metav1.DeleteOptions{})
+	if mcAddon != nil &&
+		mcAddon.Annotations[MCAddonInstallCreatedByAnnotation] == MCAddonInstallCreatedByAnnotationValue {
+		// Only delete the MCH if this controller previously created it (check by looking at the annotation)
+		klog.InfoS("Removing ManagedClusterAddon", "addonName", addonName,
+			"managedClusterName", managedClusterName)
+		return c.addonClient.AddonV1alpha1().ManagedClusterAddOns(managedClusterName).Delete(ctx,
+			addonName, metav1.DeleteOptions{})
+	}
+	return nil
 }

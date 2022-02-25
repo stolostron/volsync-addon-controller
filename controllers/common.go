@@ -100,14 +100,6 @@ func startAdditionalControllers(ctx context.Context, config *rest.Config) error 
 	)
 	clusterInformers := clusterv1informers.NewSharedInformerFactory(clusterClient, 10*time.Minute)
 
-	installController := newAddonInstallController(
-		addonClient,
-		clusterClient,
-		clusterInformers.Cluster().V1().ManagedClusters(),
-		addonInformers.Addon().V1alpha1().ManagedClusterAddOns(),
-		eventRecorder,
-	)
-
 	statusUpdaterController := newAddonStatusUpdaterController(
 		addonClient,
 		clusterInformers.Cluster().V1().ManagedClusters(),
@@ -120,7 +112,6 @@ func startAdditionalControllers(ctx context.Context, config *rest.Config) error 
 	go workInformers.Start(ctx.Done())
 	go clusterInformers.Start(ctx.Done())
 
-	go installController.Run(ctx, 1)
 	go statusUpdaterController.Run(ctx, 1)
 
 	return nil

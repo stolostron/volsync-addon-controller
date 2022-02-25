@@ -157,7 +157,11 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster, addon 
 
 func getInstallNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
 	// Will need to be set to "openshift-operators" global namespace if deploying there
-	return addon.Spec.InstallNamespace
+
+	//TODO: possibly allow install namespace to be set to "openshift-operators"
+	//  if addon.Spec.InstallNamespace != "openshift-operators" ...etc
+	// For now hardcoding to our expected namespace
+	return addonInstallNamespace
 }
 
 func getManifestFileList(addon *addonapiv1alpha1.ManagedClusterAddOn) []string {

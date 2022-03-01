@@ -127,7 +127,8 @@ var _ = Describe("AddonStatusUpdater", func() {
 
 						statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
 							addonv1alpha1.ManagedClusterAddOnConditionAvailable)
-						return statusCondition.Reason == controllers.AddonAvailabilityReasonDeployed
+						return statusCondition != nil &&
+							statusCondition.Reason == controllers.AddonAvailabilityReasonDeployed
 					}, timeout, interval).Should(BeTrue())
 
 					Expect(statusCondition.Reason).To(Equal(controllers.AddonAvailabilityReasonDeployed))

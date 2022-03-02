@@ -47,11 +47,11 @@ const (
 
 const (
 	// Annotations on the ManagedClusterAddOn for overriding operator settings (in the operator Subscription)
-	AnnotationChannelOverride                = "operator.subscription.channel"
-	AnnotationInstallPlanApprovalOverride    = "operator.subscription.installPlanApproval"
-	AnnotationCatalogSourceOverride          = "operator.subscription.source"
-	AnnotationCatalogSourceNamespaceOverride = "operator.subscription.sourceNamespace"
-	AnnotationStartingCSVOverride            = "operator.subscription.startingCSV"
+	AnnotationChannelOverride                = "operator-subscription-channel"
+	AnnotationInstallPlanApprovalOverride    = "operator-subscription-installPlanApproval"
+	AnnotationCatalogSourceOverride          = "operator-subscription-source"
+	AnnotationCatalogSourceNamespaceOverride = "operator-subscription-sourceNamespace"
+	AnnotationStartingCSVOverride            = "operator-subscription-startingCSV"
 
 	// Status Available condition reasons
 	AddonAvailabilityReasonDeployed   = "AddonDeployed"
@@ -183,8 +183,13 @@ func getInstallNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
 	// otherwise, will force the install to go into volsync-system as the volsync operator is all-namespaces type
 	// volsync-system is the only supported ns it can install into (other than openshift-operators)
 	if addon.Spec.InstallNamespace != addonInstallNamespace {
-		klog.InfoS("Spec.installNamespace is not valid, will use default",
-			"default install namespace", addonInstallNamespace)
+		if addon.Spec.InstallNamespace == "" {
+			klog.InfoS("Spec.installNamespace is not set, will use default",
+				"default install namespace", addonInstallNamespace)
+		} else {
+			klog.InfoS("Spec.installNamespace is not valid, will use default",
+				"default install namespace", addonInstallNamespace)
+		}
 	}
 	return addonInstallNamespace
 }

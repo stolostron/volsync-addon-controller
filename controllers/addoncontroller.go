@@ -32,23 +32,32 @@ var (
 
 // Change these values to suit your operator
 const (
-	addonName              = "volsync"
-	operatorName           = "volsync"
-	addonInstallNamespace  = "volsync-system"         // For volsync this is the "suggested namespace" in the CSV
-	catalogSource          = "volsyncoperatorcatalog" //FIXME:
-	catalogSourceNamespace = "openshift-marketplace"
-	//globalOperatorNamespace    = "openshift-operators"    //TODO: doing this will work with openshift only, is this an issue?
-	channel             = "alpha"          //FIXME:
-	startingCSV         = "volsync.v0.0.1" //FIXME: how to determine this? hardcoded per release?
-	installPlanApproval = "Automatic"
+	addonName                      = "volsync"
+	operatorName                   = "volsync"
+	addonInstallNamespace          = "volsync-system" // For volsync this is the "suggested namespace" in the CSV
+	globalOperatorInstallNamespace = "openshift-operators"
+
+	// Defaults for ACM-2.5
+	DefaultCatalogSource          = "redhat-operators"
+	DefaultCatalogSourceNamespace = "openshift-marketplace"
+	DefaultChannel                = "acm-2.5"
+	DefaultStartingCSV            = "" // By defualt no starting CSV - will use the latest in the channel
+	DefaultInstallPlanApproval    = "Automatic"
 )
 
 const (
-	annotationStartingCSVOverride     = "operator.startingCSV"
+	// Annotations on the ManagedClusterAddOn for overriding operator settings (in the operator Subscription)
+	AnnotationChannelOverride                = "operator.subscription.channel"
+	AnnotationInstallPlanApprovalOverride    = "operator.subscription.installPlanApproval"
+	AnnotationCatalogSourceOverride          = "operator.subscription.source"
+	AnnotationCatalogSourceNamespaceOverride = "operator.subscription.sourceNamespace"
+	AnnotationStartingCSVOverride            = "operator.subscription.startingCSV"
+
+	// Status Available condition reasons
 	AddonAvailabilityReasonDeployed   = "AddonDeployed"
 	AddonAvailabilityReasonSkipped    = "AddonNotInstalled"
-	addonAvailabilityReasonInstalling = "AddonInstalling"
-	addonAvailabilityReasonFailed     = "AddonInstallFailed"
+	AddonAvailabilityReasonInstalling = "AddonInstalling"
+	AddonAvailabilityReasonFailed     = "AddonInstallFailed"
 )
 
 func init() {
@@ -81,9 +90,9 @@ var manifestFilesAllNamespacesInstallIntoSuggestedNamespace = []string{
 
 // If operator is deployed to a all namespaces and the operator wil be deployed into the global operators namespace
 // (openshift-operators on OCP), the only thing needed is the Subscription for the operator
-//var manifestFilesAllNamespaces = []string{
-//	"manifests/operator-subscription.yaml",
-//}
+var manifestFilesAllNamespaces = []string{
+	"manifests/operator-subscription.yaml",
+}
 
 // Another agent with registration enabled.
 type volsyncAgent struct {
@@ -92,13 +101,13 @@ type volsyncAgent struct {
 
 var _ agent.AgentAddon = &volsyncAgent{}
 
-func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster, addon *addonapiv1alpha1.ManagedClusterAddOn) ([]runtime.Object, error) {
+func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster,
+	addon *addonapiv1alpha1.ManagedClusterAddOn) ([]runtime.Object, error) {
 	if !clusterSupportsAddonInstall(cluster) {
-		klog.InfoS("Cluster is not OpenShift, not deploying addon", "addonName", addonName, "cluster", cluster.GetName())
+		klog.InfoS("Cluster is not OpenShift, not deploying addon", "addonName",
+			addonName, "cluster", cluster.GetName())
 		return []runtime.Object{}, nil
 	}
-
-	//TODO: if install namespace is openshift-operators, handle - or if not (and not volsync-system) figure out how to error out
 
 	objects := []runtime.Object{}
 	for _, file := range getManifestFileList(addon) {
@@ -121,7 +130,8 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	}
 }
 
-func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster, addon *addonapiv1alpha1.ManagedClusterAddOn) (runtime.Object, error) {
+func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
+	addon *addonapiv1alpha1.ManagedClusterAddOn) (runtime.Object, error) {
 	manifestConfig := struct {
 		OperatorName           string
 		InstallNamespace       string
@@ -134,10 +144,10 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster, addon 
 	}{
 		OperatorName:           operatorName,
 		InstallNamespace:       getInstallNamespace(addon),
-		CatalogSource:          catalogSource,
-		CatalogSourceNamespace: catalogSourceNamespace,
-		InstallPlanApproval:    installPlanApproval,
-		Channel:                channel,
+		CatalogSource:          getCatalogSource(addon),
+		CatalogSourceNamespace: getCatalogSourceNamespace(addon),
+		InstallPlanApproval:    getInstallPlanApproval(addon),
+		Channel:                getChannel(addon),
 		StartingCSV:            getStartingCSV(addon),
 	}
 
@@ -155,26 +165,57 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster, addon 
 	return object, nil
 }
 
-func getInstallNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	// Will need to be set to "openshift-operators" global namespace if deploying there
-
-	//TODO: possibly allow install namespace to be set to "openshift-operators"
-	//  if addon.Spec.InstallNamespace != "openshift-operators" ...etc
-	// For now hardcoding to our expected namespace
-	return addonInstallNamespace
-}
-
 func getManifestFileList(addon *addonapiv1alpha1.ManagedClusterAddOn) []string {
-	// Modify this accordingly
+	installNamespace := getInstallNamespace(addon)
+	if installNamespace == globalOperatorInstallNamespace {
+		// Do not need to create an operator group, namespace etc if installing into the global operator ns
+		return manifestFilesAllNamespaces
+	}
 	return manifestFilesAllNamespacesInstallIntoSuggestedNamespace
 }
 
-func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	// Allow the starting CSV to be overriden with an annotation
-	startingCsvAnnotationOverride, ok := addon.Annotations[annotationStartingCSVOverride]
-	if ok && startingCsvAnnotationOverride != "" {
-		return startingCsvAnnotationOverride
+func getInstallNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+	// Will allow the spec to set installNamespace to "openshift-operators" to install globally
+	if addon.Spec.InstallNamespace == globalOperatorInstallNamespace {
+		return addon.Spec.InstallNamespace
 	}
 
-	return startingCSV // This is the version we build/ship with
+	// otherwise, will force the install to go into volsync-system as the volsync operator is all-namespaces type
+	// volsync-system is the only supported ns it can install into (other than openshift-operators)
+	if addon.Spec.InstallNamespace != addonInstallNamespace {
+		klog.InfoS("Spec.installNamespace is not valid, will use default",
+			"default install namespace", addonInstallNamespace)
+	}
+	return addonInstallNamespace
+}
+
+func getCatalogSource(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+	return getAnnotationOverrideOrDefault(addon, AnnotationCatalogSourceOverride, DefaultCatalogSource)
+}
+
+func getCatalogSourceNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+	return getAnnotationOverrideOrDefault(addon, AnnotationCatalogSourceNamespaceOverride,
+		DefaultCatalogSourceNamespace)
+}
+
+func getInstallPlanApproval(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+	return getAnnotationOverrideOrDefault(addon, AnnotationInstallPlanApprovalOverride, DefaultInstallPlanApproval)
+}
+
+func getChannel(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+	return getAnnotationOverrideOrDefault(addon, AnnotationChannelOverride, DefaultChannel)
+}
+
+func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+	return getAnnotationOverrideOrDefault(addon, AnnotationStartingCSVOverride, DefaultStartingCSV)
+}
+
+func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,
+	annotationName, defaultValue string) string {
+	// Allow to be overriden with an annotation
+	annotationOverride, ok := addon.Annotations[annotationName]
+	if ok && annotationOverride != "" {
+		return annotationOverride
+	}
+	return defaultValue
 }

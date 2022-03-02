@@ -7,7 +7,7 @@ spec:
 {{- if .Channel }}
   channel: {{ .Channel }}
 {{- end}}
-  installPlanApproval: {{ .InstallPlanApproval }} Automatic
+  installPlanApproval: {{ .InstallPlanApproval }}
   name: {{ .OperatorName }}
   source: {{ .CatalogSource }}
   sourceNamespace: {{ .CatalogSourceNamespace }}

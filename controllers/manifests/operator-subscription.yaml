@@ -1,7 +1,7 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: {{ .OperatorName }}-operator-subscription
+  name: {{ .OperatorName }}
   namespace: {{ .InstallNamespace }}
 spec:
 {{- if .Channel }}

@@ -158,6 +158,7 @@ var _ = Describe("Addoncontroller", func() {
 					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
 					Expect(ok).To(BeTrue())
 					Expect(operatorSubscription).NotTo(BeNil())
+					Expect(operatorSubscription.GetName()).To(Equal("volsync"))
 					Expect(operatorSubscription.GetNamespace()).To(Equal(vsNamespace))
 					Expect(operatorSubscription.Spec.Package).To(Equal("volsync")) // This is the "name" in json
 					// More specific checks done in tests

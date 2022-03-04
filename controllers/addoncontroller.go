@@ -6,6 +6,7 @@ import (
 	"github.com/openshift/library-go/pkg/assets"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -46,6 +47,12 @@ const (
 )
 
 const (
+	// Label on ManagedCluster - if this label is set to value "true" on a ManagedCluster resource on the hub then
+	// the addon controller will automatically create a ManagedClusterAddOn for the managed cluster and thus
+	// trigger the deployment of the volsync operator on that managed cluster
+	ManagedClusterInstallVolSyncLabel      = "addons.open-cluster-management.io/volsync"
+	ManagedClusterInstallVolSyncLabelValue = "true"
+
 	// Annotations on the ManagedClusterAddOn for overriding operator settings (in the operator Subscription)
 	AnnotationChannelOverride                = "operator-subscription-channel"
 	AnnotationInstallPlanApprovalOverride    = "operator-subscription-installPlanApproval"
@@ -124,6 +131,11 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
 		AddonName: addonName,
 		//InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
+		InstallStrategy: agent.InstallByLabelStrategy(addonInstallNamespace, metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				ManagedClusterInstallVolSyncLabel: ManagedClusterInstallVolSyncLabelValue,
+			},
+		}),
 		HealthProber: &agent.HealthProber{
 			Type: agent.HealthProberTypeNone,
 		},

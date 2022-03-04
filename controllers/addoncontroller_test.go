@@ -335,4 +335,66 @@ var _ = Describe("Addoncontroller", func() {
 			})
 		})
 	})
+
+	Context("When a ManagedClusterExists with the install volsync addon label", func() {
+		var testManagedCluster *clusterv1.ManagedCluster
+		var testManagedClusterNamespace *corev1.Namespace
+
+		BeforeEach(func() {
+			// Create a managed cluster CR to use for this test - with volsync addon install label
+			testManagedCluster = &clusterv1.ManagedCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "addon-mgdcluster-",
+					Labels: map[string]string{
+						"vendor": "OpenShift",
+						controllers.ManagedClusterInstallVolSyncLabel: controllers.ManagedClusterInstallVolSyncLabelValue,
+					},
+				},
+			}
+
+			Expect(testK8sClient.Create(testCtx, testManagedCluster)).To(Succeed())
+			Expect(testManagedCluster.Name).NotTo(BeEmpty())
+
+			// Fake the status of the mgd cluster to be available
+			Eventually(func() error {
+				err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(testManagedCluster), testManagedCluster)
+				if err != nil {
+					return err
+				}
+
+				clusterAvailableCondition := metav1.Condition{
+					Type:    clusterv1.ManagedClusterConditionAvailable,
+					Status:  metav1.ConditionTrue,
+					Reason:  "testupdate",
+					Message: "faking cluster available for test",
+				}
+				meta.SetStatusCondition(&testManagedCluster.Status.Conditions, clusterAvailableCondition)
+
+				return testK8sClient.Status().Update(testCtx, testManagedCluster)
+			}, timeout, interval).Should(Succeed())
+
+			// Create a matching namespace for this managed cluster
+			// (namespace with name=managedclustername is expected to exist on the hub)
+			testManagedClusterNamespace = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: testManagedCluster.GetName(),
+				},
+			}
+			Expect(testK8sClient.Create(testCtx, testManagedClusterNamespace)).To(Succeed())
+		})
+
+		It("Should automatically create a ManagedClusterAddon for volsync in the managedcluster namespace", func() {
+			vsAddon := &addonv1alpha1.ManagedClusterAddOn{}
+
+			// The controller should create a volsync ManagedClusterAddOn in the ManagedCluster NS
+			Eventually(func() error {
+				return testK8sClient.Get(testCtx, types.NamespacedName{
+					Name:      "volsync",
+					Namespace: testManagedCluster.GetName(),
+				}, vsAddon)
+			}, timeout, interval).Should(Succeed())
+
+			Expect(vsAddon.Spec.InstallNamespace).To(Equal("volsync-system"))
+		})
+	})
 })

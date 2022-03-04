@@ -47,6 +47,21 @@ metadata:
 spec: {}
 ```
 
+### Installing via a label on a managed cluster
+
+Instead of manually creating a ManagedClusterAddOn CR, you can alternatively install VolSync on your managed
+clusters by adding a label to the ManagedCluster resource on the hub cluster.
+
+If the label `addons.open-cluster-management.io/volsync` is set to value "true" on a ManagedCluster resource on the hub
+then the addon controller will automatically create a ManagedClusterAddOn in the namespace for the managed cluster and
+thus trigger the deployment of the volsync operator on that managed cluster.
+
+
+Example using the `oc` command to add the label to a managed cluster.
+```shell
+$ oc label managedcluster my-managed-cluster addons.open-cluster-management.io/volsync="true"
+```
+
 # Development
 
 ## Installation
@@ -58,5 +73,5 @@ To install manually, helm charts are available [here](https://github.com/stolost
 If you would like to run the volsync addon controller outside the cluster, execute:
 
 ```shell
-go run . controller --namespace <namesapce> --kubeconfig <path_to_kubeconfig>
+$ go run . controller --namespace <namesapce> --kubeconfig <path_to_kubeconfig>
 ```

@@ -149,7 +149,7 @@ func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory
 	if err != nil {
 		// Set availablity status to unknown - and assume it's being deployed
 		return a.updateAddonAvailabilityStatus(ctx, managedClusterAddon,
-			metav1.ConditionUnknown, addonAvailabilityReasonInstalling, "add-on is installing.",
+			metav1.ConditionUnknown, AddonAvailabilityReasonInstalling, "add-on is installing.",
 			metav1.ConditionTrue, "ManifestWorkNotYetApplied", "ManifestWork not yet created.")
 
 	}
@@ -163,14 +163,14 @@ func (a *addonStatusUpdaterController) sync(ctx context.Context, syncCtx factory
 
 	if meta.IsStatusConditionTrue(addonManifestWork.Status.Conditions, workapiv1.WorkProgressing) {
 		return a.updateAddonAvailabilityStatus(ctx, managedClusterAddon,
-			metav1.ConditionUnknown, addonAvailabilityReasonInstalling, "add-on is installing.",
+			metav1.ConditionUnknown, AddonAvailabilityReasonInstalling, "add-on is installing.",
 			metav1.ConditionTrue, "ManifestWorkNotYetApplied", "ManifestWork is progressing.")
 	}
 
 	if meta.IsStatusConditionFalse(addonManifestWork.Status.Conditions, workapiv1.WorkApplied) {
 		// set availability status condition of managedclusteraddon to false
 		return a.updateAddonAvailabilityStatus(ctx, managedClusterAddon,
-			metav1.ConditionFalse, addonAvailabilityReasonFailed, "add-on failed to deploy.",
+			metav1.ConditionFalse, AddonAvailabilityReasonFailed, "add-on failed to deploy.",
 			metav1.ConditionFalse, "ManifestWorkNotApplied", "ManifestWork failed.")
 	}
 

@@ -18,6 +18,9 @@ import (
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workv1 "open-cluster-management.io/api/work/v1"
 
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+
 	"github.com/stolostron/volsync-addon-controller/controllers"
 )
 
@@ -65,6 +68,10 @@ var _ = BeforeSuite(func() {
 	err = clusterv1.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
 	err = workv1.AddToScheme(scheme.Scheme)
+	Expect(err).ToNot(HaveOccurred())
+	err = operatorsv1.AddToScheme(scheme.Scheme)
+	Expect(err).ToNot(HaveOccurred())
+	err = operatorsv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
 
 	testK8sClient, err = client.New(cfg, client.Options{})

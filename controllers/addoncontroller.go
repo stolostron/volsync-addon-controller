@@ -34,7 +34,7 @@ var (
 // Change these values to suit your operator
 const (
 	addonName                      = "volsync"
-	operatorName                   = "volsync"
+	operatorName                   = "volsync-product"
 	addonInstallNamespace          = "volsync-system" // For volsync this is the "suggested namespace" in the CSV
 	globalOperatorInstallNamespace = "openshift-operators"
 

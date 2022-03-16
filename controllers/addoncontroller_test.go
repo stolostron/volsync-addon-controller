@@ -5,7 +5,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stolostron/volsync-addon-controller/controllers"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -17,11 +16,8 @@ import (
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workv1 "open-cluster-management.io/api/work/v1"
 
-	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 )
-
-const vsNamespace = "volsync-system"
 
 var _ = Describe("Addoncontroller", func() {
 	genericCodecs := serializer.NewCodecFactory(scheme.Scheme)
@@ -106,84 +102,34 @@ var _ = Describe("Addoncontroller", func() {
 				var operatorSubscription *operatorsv1alpha1.Subscription
 
 				JustBeforeEach(func() {
-					// Common checks here - When installing into a namespace for the operator (volsync-system),
-					// we should expect the manifestwork to contain:
-					// - the aggregate clusterrole (needed to create an operatorgroup)
-					// - the volsync-system namespace
-					// - the operator group
+					// When installing into the global operator namespace (openshift-operators)
+					// we should expect the manifestwork to contain only:
 					// - the operator subscription
-					Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(4))
-
-					// Aggregate cluster role
-					aggClusterRoleMF := manifestWork.Spec.Workload.Manifests[0]
-					crObj, _, err := genericCodec.Decode(aggClusterRoleMF.Raw, nil, nil)
-					Expect(err).NotTo(HaveOccurred())
-					clusterRole, ok := crObj.(*rbacv1.ClusterRole)
-					Expect(ok).To(BeTrue())
-					Expect(clusterRole).NotTo(BeNil())
-					Expect(clusterRole.GetName()).To(Equal(
-						"open-cluster-management:volsync-product-addon-operatorgroups-aggregate-clusterrole"))
-					Expect(clusterRole.Labels["rbac.authorization.k8s.io/aggregate-to-admin"]).To(Equal("true"))
-					Expect(len(clusterRole.Rules)).To(Equal(1))
-					Expect(clusterRole.Rules[0]).To(Equal(rbacv1.PolicyRule{
-						APIGroups: []string{"operators.coreos.com"},
-						Resources: []string{"operatorgroups"},
-						Verbs:     []string{"get", "create", "delete", "update"},
-					}))
-
-					// Namespace
-					namespaceMF := manifestWork.Spec.Workload.Manifests[1]
-					nsObj, _, err := genericCodec.Decode(namespaceMF.Raw, nil, nil)
-					Expect(err).NotTo(HaveOccurred())
-					ns, ok := nsObj.(*corev1.Namespace)
-					Expect(ok).To(BeTrue())
-					Expect(ns).NotTo(BeNil())
-					Expect(ns.GetName()).To(Equal(vsNamespace))
-
-					// Operator Group
-					ogGroupMF := manifestWork.Spec.Workload.Manifests[2]
-					ogObj, _, err := genericCodec.Decode(ogGroupMF.Raw, nil, nil)
-					Expect(err).NotTo(HaveOccurred())
-					operatorGroup, ok := ogObj.(*operatorsv1.OperatorGroup)
-					Expect(ok).To(BeTrue())
-					Expect(operatorGroup).NotTo(BeNil())
-					Expect(operatorGroup.GetName()).To(Equal("volsync-product-operatorgroup"))
-					Expect(operatorGroup.GetNamespace()).To(Equal(vsNamespace))
-					Expect(operatorGroup.Spec).To(Equal(operatorsv1.OperatorGroupSpec{}))
+					Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(1))
 
 					// Subscription
-					subMF := manifestWork.Spec.Workload.Manifests[3]
+					subMF := manifestWork.Spec.Workload.Manifests[0]
 					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
 					Expect(err).NotTo(HaveOccurred())
+					var ok bool
 					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
 					Expect(ok).To(BeTrue())
 					Expect(operatorSubscription).NotTo(BeNil())
-					Expect(operatorSubscription.GetName()).To(Equal("volsync-product"))
-					Expect(operatorSubscription.GetNamespace()).To(Equal(vsNamespace))
+					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
 					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
+
 					// More specific checks done in tests
 				})
 
-				Context("When the ManagedClusterAddOn spec uses volsync-system as the installNamespace", func() {
-					BeforeEach(func() {
-						// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
-						// should still be valid here
-						mcAddon.Spec.InstallNamespace = vsNamespace
-					})
-					It("Should install as in the default case with no spec", func() {
-						Expect(mcAddon.Spec.InstallNamespace).To(Equal(vsNamespace))
-					})
-				})
-
-				Context("When the ManagedClusterAddOn spec uses an invalid ns as the installNamespace", func() {
+				Context("When the ManagedClusterAddOn spec set an installNamespace", func() {
 					BeforeEach(func() {
 						// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
 						// should still be valid here
 						mcAddon.Spec.InstallNamespace = "test1234"
 					})
-					It("Should still install to the default volsync-system namespace", func() {
+					It("Should still install to the default openshift-operators namespace", func() {
 						// Code shouldn't have alterted the spec - but tests above will confirm that the
-						// operatorgroup/subsription were created in volsync-system
+						// operatorgroup/subscription were created in volsync-system
 						Expect(mcAddon.Spec.InstallNamespace).To(Equal("test1234"))
 					})
 				})
@@ -300,39 +246,6 @@ var _ = Describe("Addoncontroller", func() {
 					})
 				})
 			})
-
-			Context("When installing into the openshift-operators global namespace", func() {
-				BeforeEach(func() {
-					mcAddon.Spec.InstallNamespace = "openshift-operators"
-				})
-
-				It("Should create a manifest work that only has an operator subscription", func() {
-					Expect(mcAddon.Spec.InstallNamespace).To(Equal("openshift-operators"))
-
-					// When installing into the global operator namespace (openshift-operators)
-					// we should expect the manifestwork to contain only:
-					// - the operator subscription
-					Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(1))
-
-					// Subscription
-					subMF := manifestWork.Spec.Workload.Manifests[0]
-					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
-					Expect(err).NotTo(HaveOccurred())
-					operatorSubscription, ok := subObj.(*operatorsv1alpha1.Subscription)
-					Expect(ok).To(BeTrue())
-					Expect(operatorSubscription).NotTo(BeNil())
-					Expect(operatorSubscription.GetNamespace()).To(Equal(mcAddon.Spec.InstallNamespace))
-					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
-
-					Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
-					Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
-						controllers.DefaultInstallPlanApproval))
-					Expect(operatorSubscription.Spec.CatalogSource).To(Equal(controllers.DefaultCatalogSource))
-					Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
-						controllers.DefaultCatalogSourceNamespace))
-					Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
-				})
-			})
 		})
 	})
 
@@ -394,7 +307,7 @@ var _ = Describe("Addoncontroller", func() {
 				}, vsAddon)
 			}, timeout, interval).Should(Succeed())
 
-			Expect(vsAddon.Spec.InstallNamespace).To(Equal("volsync-system"))
+			Expect(vsAddon.Spec.InstallNamespace).To(Equal(""))
 		})
 	})
 })

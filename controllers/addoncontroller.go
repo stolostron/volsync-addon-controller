@@ -35,7 +35,6 @@ var (
 const (
 	addonName                      = "volsync"
 	operatorName                   = "volsync-product"
-	addonInstallNamespace          = "volsync-system" // For volsync this is the "suggested namespace" in the CSV
 	globalOperatorInstallNamespace = "openshift-operators"
 
 	// Defaults for ACM-2.5
@@ -131,11 +130,14 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
 		AddonName: addonName,
 		//InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
-		InstallStrategy: agent.InstallByLabelStrategy(addonInstallNamespace, metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				ManagedClusterInstallVolSyncLabel: ManagedClusterInstallVolSyncLabelValue,
+		InstallStrategy: agent.InstallByLabelStrategy(
+			"", /* this controller will ignore the ns in the spec so set to empty */
+			metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					ManagedClusterInstallVolSyncLabel: ManagedClusterInstallVolSyncLabelValue,
+				},
 			},
-		}),
+		),
 		HealthProber: &agent.HealthProber{
 			Type: agent.HealthProberTypeNone,
 		},
@@ -187,23 +189,8 @@ func getManifestFileList(addon *addonapiv1alpha1.ManagedClusterAddOn) []string {
 }
 
 func getInstallNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	// Will allow the spec to set installNamespace to "openshift-operators" to install globally
-	if addon.Spec.InstallNamespace == globalOperatorInstallNamespace {
-		return addon.Spec.InstallNamespace
-	}
-
-	// otherwise, will force the install to go into volsync-system as the volsync operator is all-namespaces type
-	// volsync-system is the only supported ns it can install into (other than openshift-operators)
-	if addon.Spec.InstallNamespace != addonInstallNamespace {
-		if addon.Spec.InstallNamespace == "" {
-			klog.InfoS("Spec.installNamespace is not set, will use default",
-				"default install namespace", addonInstallNamespace)
-		} else {
-			klog.InfoS("Spec.installNamespace is not valid, will use default",
-				"default install namespace", addonInstallNamespace)
-		}
-	}
-	return addonInstallNamespace
+	// The only namespace supported is openshift-operators, so ignore whatever is in the spec
+	return globalOperatorInstallNamespace
 }
 
 func getCatalogSource(addon *addonapiv1alpha1.ManagedClusterAddOn) string {

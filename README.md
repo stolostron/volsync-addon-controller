@@ -56,13 +56,131 @@ If the label `addons.open-cluster-management.io/volsync` is set to value "true" 
 then the addon controller will automatically create a ManagedClusterAddOn in the namespace for the managed cluster and
 thus trigger the deployment of the volsync operator on that managed cluster.
 
-
 Example using the `oc` command to add the label to a managed cluster.
+
 ```shell
-$ oc label managedcluster my-managed-cluster addons.open-cluster-management.io/volsync="true"
+oc label managedcluster my-managed-cluster addons.open-cluster-management.io/volsync="true"
 ```
 
-# Development
+## Testing using the downstream operator catalog
+
+To test the addon controller and VolSync operator for builds that are not yet published to the official Red Hat
+Catalog (for example prior to our initial VolSync operator release, or when new pre-release versions are
+published to the downstream catalog), testers can follow the following steps.
+
+These steps assume that there is a hub cluster with ACM installed with the version of the volsync-addon-controller
+you want to test with.  It also assumes there is 1 or more managed clusters, and these managed clusters are the ones
+that you want to deploy the VolSync operator on.
+
+### On the managed clusters
+
+- First disable old catalog sources, see [deploy-from-brew - Step 0 disable old catalogsources](https://github.com/stolostron/deploy/blob/master/docs/deploy-from-brew.md#step-0-disable-old-catalogsources).
+  This step is so we can stop using the prebuilt operator catalog and instead replace with the downstream pre-release
+  catalog
+
+  ```shell
+  oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources","value": true}]'
+  ```
+
+- Follow [deploy-from-brew](https://github.com/stolostron/deploy/blob/master/docs/deploy-from-brew.md)
+  steps `0, 1 & 2`.  These steps involve authenticating so the downstream image can be pulled, updating the auth on the
+  cluster itself and also creating an ImageContentSourcePolicy (ICSP) to add brew as a mirror for requests to the
+  redhat registry.
+
+- Create a catalog source to point to the image.  This will essentially look like the official `redhat-operators`
+  catalog source.  The image should be the image that corresponds to the downstream operator bundle image you want
+  to test against.
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: redhat-operators
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: <REPLACE_IMAGE>
+  displayName: My Operator Catalog
+  publisher: grpc
+```
+
+**REPLACE_IMAGE** should be replaced with the image.
+
+As an example, you may have an index image location for the build that looks like this:
+
+```text
+Index image v4.6: registry-proxy.engineering.redhat.com/rh-osbs/iib:199520
+Index image v4.7: registry-proxy.engineering.redhat.com/rh-osbs/iib:199545
+Index image v4.8: registry-proxy.engineering.redhat.com/rh-osbs/iib:199592
+Index image v4.9: registry-proxy.engineering.redhat.com/rh-osbs/iib:199646
+Index image v4.10: registry-proxy.engineering.redhat.com/rh-osbs/iib:199693
+Index image v4.11: registry-proxy.engineering.redhat.com/rh-osbs/iib:199736
+```
+
+If you are testing on an OCP 4.9 image, you would then choose the
+`registry-proxy.engineering.redhat.com/rh-osbs/iib:199646` image.
+
+You will also need to replace `registry-proxy.engineering.redhat.com` with `brew.registry.redhat.io` in the image path.
+
+So `registry-proxy.engineering.redhat.com/rh-osbs/iib:199646` becomes `brew.registry.redhat.io/rh-osbs/iib:199646`
+
+Example edited CatalogSource:
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: redhat-operators
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: brew.registry.redhat.io/rh-osbs/iib:199646`
+  displayName: My Operator Catalog
+  publisher: grpc
+```
+
+### On the Hub cluster
+
+- Confirm the volsync-addon-controller is running in the `open-cluster-management` namespace (it should be
+    deployed as part of ACM)
+
+- Import the managed cluster(s) you want to test
+
+To Deploy VolSync on managed clusters, you can either create a ManagedClusterAddOn or add a label to the
+ManagedCluster resource on the hub.
+
+### Deploying VolSync to ManagedCluster via label (to be done on the hub cluster)
+
+Add the label: `addons.open-cluster-management.io/volsync` with value `"true"`
+
+For example to add the label to a managed cluster named `test-managed-1` you can do the following:
+
+```shell
+oc label managedcluster test-managed-1 "addons.open-cluster-management.io/volsync"="true"
+```
+
+After this step you should see a ManagedClusterAddOn resource should be created automatically for you on the hub
+in the namespace for the managed cluster.
+
+### Deploying VolSync to ManagedCluster via ManagedClusterAddOn (to be done on the hub cluster)
+
+Alternatively, you can create the ManagedClusterAddOn resource yourself.
+
+Create a ManagedClusterAddOn:
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ManagedClusterAddOn
+metadata:
+  name: volsync
+  namespace: <MANAGED_CLUSTER_NAMESPACE>
+spec: {}
+```
+
+Replace `MANAGED_CLUSTER_NAMESPACE` with the namespace of your managed cluster (this is the same as the managed cluster
+name)
+
+## Development
 
 ## Installation
 
@@ -73,5 +191,5 @@ To install manually, helm charts are available [here](https://github.com/stolost
 If you would like to run the volsync addon controller outside the cluster, execute:
 
 ```shell
-$ go run . controller --namespace <namesapce> --kubeconfig <path_to_kubeconfig>
+go run . controller --namespace <namesapce> --kubeconfig <path_to_kubeconfig>
 ```

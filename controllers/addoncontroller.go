@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"context"
 	"embed"
+	"fmt"
+	"strings"
 
 	"github.com/openshift/library-go/pkg/assets"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
@@ -14,9 +17,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
+	workapiv1 "open-cluster-management.io/api/work/v1"
 )
 
 //
@@ -58,12 +63,6 @@ const (
 	AnnotationCatalogSourceOverride          = "operator-subscription-source"
 	AnnotationCatalogSourceNamespaceOverride = "operator-subscription-sourceNamespace"
 	AnnotationStartingCSVOverride            = "operator-subscription-startingCSV"
-
-	// Status Available condition reasons
-	AddonAvailabilityReasonDeployed   = "AddonDeployed"
-	AddonAvailabilityReasonSkipped    = "AddonNotInstalled"
-	AddonAvailabilityReasonInstalling = "AddonInstalling"
-	AddonAvailabilityReasonFailed     = "AddonInstallFailed"
 )
 
 func init() {
@@ -139,9 +138,50 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 			},
 		),
 		HealthProber: &agent.HealthProber{
-			Type: agent.HealthProberTypeNone,
+			Type: agent.HealthProberTypeWork,
+			WorkProber: &agent.WorkHealthProber{
+				ProbeFields: []agent.ProbeField{
+					{
+						ResourceIdentifier: workapiv1.ResourceIdentifier{
+							Group:     "operators.coreos.com",
+							Resource:  "subscriptions",
+							Name:      operatorName,
+							Namespace: getInstallNamespace(),
+						},
+						ProbeRules: []workapiv1.FeedbackRule{
+							{
+								Type: workapiv1.JSONPathsType,
+								JsonPaths: []workapiv1.JsonPath{
+									{
+										Name: "installedCSV",
+										Path: ".status.installedCSV",
+									},
+								},
+							},
+						},
+					},
+				},
+				HealthCheck: subHealthCheck,
+			},
 		},
 	}
+}
+
+func subHealthCheck(identifier workapiv1.ResourceIdentifier, result workapiv1.StatusFeedbackResult) error {
+	for _, feedbackValue := range result.Values {
+		if feedbackValue.Name == "installedCSV" {
+			klog.InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
+			if feedbackValue.Value.Type != workapiv1.String || feedbackValue.Value.String == nil ||
+				!strings.HasPrefix(*feedbackValue.Value.String, operatorName) {
+
+				installedCSVErr := fmt.Errorf("addon subscription has unexpected installedCSV value")
+				klog.ErrorS(installedCSVErr, "Sub may not have installed CSV")
+				return installedCSVErr
+			}
+		}
+	}
+	klog.InfoS("health check successful")
+	return nil
 }
 
 func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
@@ -157,7 +197,7 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
 		StartingCSV            string
 	}{
 		OperatorName:           operatorName,
-		InstallNamespace:       getInstallNamespace(addon),
+		InstallNamespace:       getInstallNamespace(),
 		CatalogSource:          getCatalogSource(addon),
 		CatalogSourceNamespace: getCatalogSourceNamespace(addon),
 		InstallPlanApproval:    getInstallPlanApproval(addon),
@@ -180,7 +220,7 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
 }
 
 func getManifestFileList(addon *addonapiv1alpha1.ManagedClusterAddOn) []string {
-	installNamespace := getInstallNamespace(addon)
+	installNamespace := getInstallNamespace()
 	if installNamespace == globalOperatorInstallNamespace {
 		// Do not need to create an operator group, namespace etc if installing into the global operator ns
 		return manifestFilesAllNamespaces
@@ -188,7 +228,7 @@ func getManifestFileList(addon *addonapiv1alpha1.ManagedClusterAddOn) []string {
 	return manifestFilesAllNamespacesInstallIntoSuggestedNamespace
 }
 
-func getInstallNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
+func getInstallNamespace() string {
 	// The only namespace supported is openshift-operators, so ignore whatever is in the spec
 	return globalOperatorInstallNamespace
 }
@@ -222,4 +262,32 @@ func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,
 		return annotationOverride
 	}
 	return defaultValue
+}
+
+func clusterSupportsAddonInstall(cluster *clusterv1.ManagedCluster) bool {
+	vendor, ok := cluster.Labels["vendor"]
+	if !ok || !strings.EqualFold(vendor, "OpenShift") {
+		return false
+	}
+	return true
+}
+
+func StartControllers(ctx context.Context, config *rest.Config) error {
+	mgr, err := addonmanager.New(config)
+	if err != nil {
+		return err
+	}
+	err = mgr.AddAgent(&volsyncAgent{config})
+	if err != nil {
+		return err
+	}
+
+	err = mgr.Start(ctx)
+	if err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+
+	return nil
 }

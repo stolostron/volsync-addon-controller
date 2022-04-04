@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
@@ -311,3 +312,277 @@ var _ = Describe("Addoncontroller", func() {
 		})
 	})
 })
+
+var _ = Describe("Addon Status Update Tests", func() {
+	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
+
+	Context("When a ManagedClusterExists", func() {
+		var testManagedCluster *clusterv1.ManagedCluster
+		var testManagedClusterNamespace *corev1.Namespace
+
+		BeforeEach(func() {
+			// Create a managed cluster CR to use for this test
+			testManagedCluster = &clusterv1.ManagedCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "addon-inst-mgdcluster-",
+					Labels: map[string]string{
+						"vendor": "OpenShift",
+					},
+				},
+			}
+		})
+
+		JustBeforeEach(func() {
+			Expect(testK8sClient.Create(testCtx, testManagedCluster)).To(Succeed())
+			Expect(testManagedCluster.Name).NotTo(BeEmpty())
+
+			// Fake the status of the mgd cluster to be available
+			Eventually(func() error {
+				err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(testManagedCluster), testManagedCluster)
+				if err != nil {
+					return err
+				}
+
+				clusterAvailableCondition := metav1.Condition{
+					Type:    clusterv1.ManagedClusterConditionAvailable,
+					Status:  metav1.ConditionTrue,
+					Reason:  "testupdate",
+					Message: "faking cluster available for test",
+				}
+				meta.SetStatusCondition(&testManagedCluster.Status.Conditions, clusterAvailableCondition)
+
+				return testK8sClient.Status().Update(testCtx, testManagedCluster)
+			}, timeout, interval).Should(Succeed())
+
+			// Create a matching namespace for this managed cluster
+			// (namespace with name=managedclustername is expected to exist on the hub)
+			testManagedClusterNamespace = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: testManagedCluster.GetName(),
+				},
+			}
+			Expect(testK8sClient.Create(testCtx, testManagedClusterNamespace)).To(Succeed())
+		})
+
+		Context("When a ManagedClusterAddon for this addon is created", func() {
+			var mcAddon *addonv1alpha1.ManagedClusterAddOn
+			JustBeforeEach(func() {
+				// Create a ManagedClusterAddon for the mgd cluster
+				mcAddon = &addonv1alpha1.ManagedClusterAddOn{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "volsync",
+						Namespace: testManagedClusterNamespace.GetName(),
+					},
+					Spec: addonv1alpha1.ManagedClusterAddOnSpec{},
+				}
+				Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+			})
+
+			Context("When the managed cluster is an OpenShiftCluster and manifestwork is available", func() {
+				JustBeforeEach(func() {
+					// The controller should create a ManifestWork for this ManagedClusterAddon
+					// Fake out that the ManifestWork is applied and available
+					Eventually(func() error {
+						manifestWork := &workv1.ManifestWork{}
+						err := testK8sClient.Get(testCtx, types.NamespacedName{
+							Name:      "addon-volsync-deploy",
+							Namespace: testManagedCluster.GetName(),
+						}, manifestWork)
+						if err != nil {
+							return err
+						}
+
+						workAppliedCondition := metav1.Condition{
+							Type:    workv1.WorkApplied,
+							Status:  metav1.ConditionTrue,
+							Reason:  "testupdate",
+							Message: "faking applied for test",
+						}
+						meta.SetStatusCondition(&manifestWork.Status.Conditions, workAppliedCondition)
+
+						workAvailableCondition := metav1.Condition{
+							Type:    workv1.WorkAvailable,
+							Status:  metav1.ConditionTrue,
+							Reason:  "testupdate",
+							Message: "faking avilable for test",
+						}
+						meta.SetStatusCondition(&manifestWork.Status.Conditions, workAvailableCondition)
+
+						return testK8sClient.Status().Update(testCtx, manifestWork)
+					}, timeout, interval).Should(Succeed())
+				})
+
+				Context("When the manifestwork statusFeedback is not available", func() {
+					It("Should set the ManagedClusterAddon status to unknown", func() {
+						var statusCondition *metav1.Condition
+						Eventually(func() bool {
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "volsync",
+								Namespace: testManagedClusterNamespace.GetName(),
+							}, mcAddon)
+							if err != nil {
+								return false
+							}
+
+							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
+								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+							return statusCondition.Reason == "NoProbeResult"
+						}, timeout, interval).Should(BeTrue())
+
+						Expect(statusCondition.Reason).To(Equal("NoProbeResult"))
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
+					})
+				})
+
+				Context("When the manifestwork statusFeedback is returned with a bad value", func() {
+					JustBeforeEach(func() {
+						Eventually(func() error {
+							// Update the manifestwork to set the statusfeedback to a bad value
+
+							manifestWork := &workv1.ManifestWork{}
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "addon-volsync-deploy",
+								Namespace: testManagedCluster.GetName(),
+							}, manifestWork)
+							if err != nil {
+								return err
+							}
+
+							manifestWork.Status.ResourceStatus =
+								manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack("notinstalled")
+
+							return testK8sClient.Status().Update(testCtx, manifestWork)
+						}, timeout, interval).Should(Succeed())
+
+					})
+
+					It("Should set the ManagedClusterAddon status to unknown", func() {
+						var statusCondition *metav1.Condition
+						Eventually(func() bool {
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "volsync",
+								Namespace: testManagedClusterNamespace.GetName(),
+							}, mcAddon)
+							if err != nil {
+								return false
+							}
+
+							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
+								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+							return statusCondition.Reason == "ProbeUnavailable"
+						}, timeout, interval).Should(BeTrue())
+
+						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
+						Expect(statusCondition.Message).To(ContainSubstring("Probe addon unavailable with err"))
+						Expect(statusCondition.Message).To(ContainSubstring("unexpected installedCSV value"))
+					})
+				})
+
+				Context("When the manifestwork statusFeedback is returned with a correct installed value", func() {
+					JustBeforeEach(func() {
+						Eventually(func() error {
+							// Update the manifestwork to set the statusfeedback to a bad value
+
+							manifestWork := &workv1.ManifestWork{}
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "addon-volsync-deploy",
+								Namespace: testManagedCluster.GetName(),
+							}, manifestWork)
+							if err != nil {
+								return err
+							}
+
+							manifestWork.Status.ResourceStatus =
+								manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack("volsync-product.v0.4.0")
+
+							return testK8sClient.Status().Update(testCtx, manifestWork)
+						}, timeout, interval).Should(Succeed())
+
+					})
+
+					It("Should set the ManagedClusterAddon status to available", func() {
+						var statusCondition *metav1.Condition
+						Eventually(func() bool {
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "volsync",
+								Namespace: testManagedClusterNamespace.GetName(),
+							}, mcAddon)
+							if err != nil {
+								return false
+							}
+
+							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
+								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+							return statusCondition.Reason == "ProbeAvailable"
+						}, timeout, interval).Should(BeTrue())
+
+						logger.Info("#### status condition", "statusCondition", statusCondition)
+
+						Expect(statusCondition.Reason).To(Equal("ProbeAvailable"))
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
+						//TODO: should contain volsync in msg (i.e. "volsync addon is available"), requires change
+						// from addon-framework
+						Expect(statusCondition.Message).To(Equal("Addon is available"))
+					})
+				})
+			})
+
+			Context("When the managed cluster is not an OpenShift cluster", func() {
+				BeforeEach(func() {
+					// remove labels from the managedcluster resource before it's created
+					// to simulate a "non-OpenShift" cluster
+					testManagedCluster.Labels = map[string]string{}
+				})
+
+				It("ManagedClusterAddOn status should not be successful", func() {
+					var statusCondition *metav1.Condition
+					Eventually(func() *metav1.Condition {
+						err := testK8sClient.Get(testCtx, types.NamespacedName{
+							Name:      "volsync",
+							Namespace: testManagedClusterNamespace.GetName(),
+						}, mcAddon)
+						if err != nil {
+							return nil
+						}
+
+						statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
+							addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+						return statusCondition
+					}, timeout, interval).ShouldNot(BeNil())
+
+					Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
+					Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
+				})
+			})
+		})
+	})
+})
+
+func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(installedCSVValue string) workv1.ManifestResourceStatus {
+	return workv1.ManifestResourceStatus{
+		Manifests: []workv1.ManifestCondition{
+			{
+				ResourceMeta: workv1.ManifestResourceMeta{
+					Group:     "operators.coreos.com",
+					Kind:      "Subscription",
+					Name:      "volsync-product",
+					Namespace: "openshift-operators",
+					Resource:  "subscriptions",
+					Version:   "v1alpha1",
+				},
+				StatusFeedbacks: workv1.StatusFeedbackResult{
+					Values: []workv1.FeedbackValue{
+						{
+							Name: "installedCSV",
+							Value: workv1.FieldValue{
+								Type:   "String",
+								String: &installedCSVValue,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}

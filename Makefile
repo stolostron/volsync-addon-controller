@@ -20,7 +20,7 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
 .PHONY: test
-TEST_ARGS ?= -progress -randomize-all -randomize-suites -slow-spec-threshold=30s -p -cover -coverprofile=cover.out -output-dir=.
+TEST_ARGS ?= -progress -randomize-all -randomize-suites -slow-spec-threshold=30s -cover -coverprofile=cover.out -output-dir=.
 TEST_PACKAGES ?= ./...
 test: lint envtest ginkgo ## Run tests.
 	-rm -f cover.out

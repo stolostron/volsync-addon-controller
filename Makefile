@@ -28,7 +28,7 @@ test: lint envtest ginkgo ## Run tests.
 
 .PHONY: lint
 lint: golangci-lint ## Lint source code
-	$(GOLANGCILINT) run ./...
+	$(GOLANGCILINT) run --timeout 4m0s ./...
 
 .PHONY: golangci-lint
 GOLANGCILINT := $(PROJECT_DIR)/bin/golangci-lint

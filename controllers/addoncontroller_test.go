@@ -453,7 +453,6 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 							return testK8sClient.Status().Update(testCtx, manifestWork)
 						}, timeout, interval).Should(Succeed())
-
 					})
 
 					It("Should set the ManagedClusterAddon status to unknown", func() {
@@ -582,6 +581,7 @@ func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(installedCSV
 						},
 					},
 				},
+				Conditions: []metav1.Condition{},
 			},
 		},
 	}

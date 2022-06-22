@@ -3,17 +3,17 @@ module github.com/stolostron/volsync-addon-controller
 go 1.17
 
 require (
-	github.com/onsi/ginkgo/v2 v2.1.2
-	github.com/onsi/gomega v1.18.1
+	github.com/onsi/ginkgo/v2 v2.1.4
+	github.com/onsi/gomega v1.19.0
 	github.com/openshift/library-go v0.0.0-20220112153822-ac82336bd076
 	github.com/operator-framework/api v0.10.7
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v0.23.0
 	k8s.io/component-base v0.23.0
-	k8s.io/klog/v2 v2.30.0
+	k8s.io/klog/v2 v2.70.0
 	open-cluster-management.io/addon-framework v0.3.0
 	open-cluster-management.io/api v0.5.1-0.20220112073018-2d280a97a052
 	sigs.k8s.io/controller-runtime v0.11.0
@@ -86,11 +86,11 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
+	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/appengine v1.6.7 // indirect

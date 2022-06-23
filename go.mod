@@ -6,7 +6,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
 	github.com/openshift/library-go v0.0.0-20220622115547-84d884f4c9f6
-	github.com/operator-framework/api v0.10.7
+	github.com/operator-framework/api v0.15.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.24.2
@@ -15,7 +15,7 @@ require (
 	k8s.io/component-base v0.24.2
 	k8s.io/klog/v2 v2.70.0
 	open-cluster-management.io/addon-framework v0.3.0
-	open-cluster-management.io/api v0.5.1-0.20220112073018-2d280a97a052
+	open-cluster-management.io/api v0.7.0
 	sigs.k8s.io/controller-runtime v0.12.1
 )
 

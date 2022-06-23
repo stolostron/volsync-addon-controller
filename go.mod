@@ -16,7 +16,7 @@ require (
 	k8s.io/klog/v2 v2.70.0
 	open-cluster-management.io/addon-framework v0.3.0
 	open-cluster-management.io/api v0.5.1-0.20220112073018-2d280a97a052
-	sigs.k8s.io/controller-runtime v0.11.0
+	sigs.k8s.io/controller-runtime v0.12.1
 )
 
 require (

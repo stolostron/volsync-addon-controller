@@ -9,7 +9,7 @@ ARCH := $(shell go env GOARCH)
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Helper software versions
-GOLANGCI_VERSION := v1.46.1
+GOLANGCI_VERSION := v1.46.2
 
 .PHONY: docker-build
 docker-build: test ## Build docker image

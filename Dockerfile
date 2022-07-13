@@ -1,6 +1,6 @@
 # Build the addon controller binary
 #FROM registry.access.redhat.com/ubi8/go-toolset as builder
-FROM registry.ci.openshift.org/stolostron/builder:go1.17-linux AS builder
+FROM registry.ci.openshift.org/stolostron/builder:go1.18-linux AS builder
 USER root
 
 WORKDIR /workspace
@@ -18,7 +18,6 @@ COPY controllers/ controllers/
 # Build
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
-#ARG VERSION="(unknown)" #FIXME: remove
 RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller main.go
 
 # Final container

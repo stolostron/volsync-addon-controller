@@ -13,9 +13,9 @@ import (
 	"k8s.io/component-base/logs"
 
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
-	"open-cluster-management.io/addon-framework/pkg/version"
 
-	"github.com/stolostron/volsync-addon-controller/controllers"
+	"github.com/stolostron/volsync-addon-controller/pkg/controllers"
+	"github.com/stolostron/volsync-addon-controller/pkg/version"
 )
 
 func main() {

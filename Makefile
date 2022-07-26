@@ -8,12 +8,30 @@ OS := $(shell go env GOOS)
 ARCH := $(shell go env GOARCH)
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
+GO_PACKAGE ?=$(shell go list -m -f '{{ .Path }}' || echo 'no_package_detected')
+
+GO_LD_EXTRAFLAGS ?=
+
+SOURCE_GIT_TAG ?=$(shell git describe --long --tags --abbrev=7 --match 'v[0-9]*' || echo 'v0.0.0-unknown')
+SOURCE_GIT_COMMIT ?=$(shell git rev-parse --short "HEAD^{commit}" 2>/dev/null)
+
+ifndef OS_GIT_VERSION
+	OS_GIT_VERSION = $(SOURCE_GIT_TAG)
+endif
+
+define version-ldflags
+-X $(1).versionFromGit=$(OS_GIT_VERSION) \
+-X $(1).commitFromGit=$(SOURCE_GIT_COMMIT) \
+-X $(1).buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+endef
+GO_LD_FLAGS ?="$(call version-ldflags,$(GO_PACKAGE)/pkg/version) $(GO_LD_EXTRAFLAGS)"
+
 # Helper software versions
 GOLANGCI_VERSION := v1.46.2
 
 .PHONY: docker-build
 docker-build: test ## Build docker image
-	docker build -t ${IMG} .
+	docker build --build-arg GO_LD_FLAGS=${GO_LD_FLAGS} -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.

@@ -3,7 +3,6 @@ package controllers_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stolostron/volsync-addon-controller/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +17,8 @@ import (
 	workv1 "open-cluster-management.io/api/work/v1"
 
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+
+	"github.com/stolostron/volsync-addon-controller/pkg/controllers"
 )
 
 var _ = Describe("Addoncontroller", func() {

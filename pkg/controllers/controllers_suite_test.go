@@ -21,7 +21,7 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 
-	"github.com/stolostron/volsync-addon-controller/controllers"
+	"github.com/stolostron/volsync-addon-controller/pkg/controllers"
 )
 
 var testEnv *envtest.Environment
@@ -51,7 +51,7 @@ var _ = BeforeSuite(func() {
 			// CRDs
 			//filepath.Join("..", "config", "crd", "bases"),
 			// CRDs needed for tests
-			filepath.Join("..", "hack", "crds"),
+			filepath.Join("..", "..", "hack", "crds"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}

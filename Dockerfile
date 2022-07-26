@@ -13,12 +13,13 @@ RUN go mod download
 
 # Copy the go source
 COPY main.go .
-COPY controllers/ controllers/
+COPY pkg/ pkg/
 
 # Build
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
-RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller main.go
+ARG GO_LD_FLAGS="-X versionFromGit=(unknown)"
+RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "${GO_LD_FLAGS}" main.go
 
 # Final container
 FROM registry.access.redhat.com/ubi8-minimal

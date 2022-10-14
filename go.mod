@@ -7,7 +7,7 @@ require (
 	github.com/onsi/gomega v1.22.0
 	github.com/openshift/library-go v0.0.0-20220622115547-84d884f4c9f6
 	github.com/operator-framework/api v0.15.0
-	github.com/spf13/cobra v1.5.0
+	github.com/spf13/cobra v1.6.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
@@ -49,7 +49,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect

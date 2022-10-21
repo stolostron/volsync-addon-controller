@@ -52,4 +52,4 @@ $(ENVTEST): $(LOCALBIN)
 GINKGO := $(LOCALBIN)/ginkgo
 ginkgo: $(GINKGO) ## Download ginkgo
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@latest
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.4

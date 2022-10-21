@@ -1,6 +1,5 @@
 # Build the addon controller binary
-#FROM registry.access.redhat.com/ubi8/go-toolset as builder
-FROM registry.ci.openshift.org/stolostron/builder:go1.18-linux AS builder
+FROM registry.ci.openshift.org/stolostron/builder:go1.19-linux AS builder
 USER root
 
 WORKDIR /workspace

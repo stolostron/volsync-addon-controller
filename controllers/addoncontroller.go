@@ -48,7 +48,7 @@ const (
 	// Defaults for ACM-2.6
 	DefaultCatalogSource          = "redhat-operators"
 	DefaultCatalogSourceNamespace = "openshift-marketplace"
-	DefaultChannel                = "acm-2.6"
+	DefaultChannel                = "acm-2.7"
 	DefaultStartingCSV            = "" // By default no starting CSV - will use the latest in the channel
 	DefaultInstallPlanApproval    = "Automatic"
 )

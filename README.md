@@ -180,6 +180,94 @@ spec: {}
 Replace `MANAGED_CLUSTER_NAMESPACE` with the namespace of your managed cluster (this is the same as the managed cluster
 name)
 
+## Setting nodeSelectors or tolerations in the volsync deploys on managed clusters
+
+This is part of [story](https://github.com/stolostron/backlog/issues/26712).  Also see the dev
+guide [here](https://docs.google.com/document/d/1MkYz3RKjU67vn5qXCDCQ5i3eAxdLUbaTq1mCw3ObV3I/edit#)
+
+To use node selectors/tolerations, a ClusterManagementAddOn for VolSync should exist on the hub.  Note that this is
+now included in the volsync-addon-controller-charts - so there should be one deployed by default when deploying ACM.
+
+The ClusterManagementAddOn can be edited to indicate that the addon can refer to a AddonDeploymentConfig.  The
+AddonDeploymentConfig CR is the resource where node selectors and tolerations can be specified.
+
+Edit the volsync ClusterManagementAddOn and add supportedConfigs section to add `addondeploymentconfigs`:
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ClusterManagementAddOn
+metadata:
+  name: volsync
+spec:
+  addOnMeta:
+    displayName: VolSync
+    description: VolSync
+  supportedConfigs:
+  - group: addon.open-cluster-management.io
+    resource: addondeploymentconfigs
+```
+
+Now the addonDeploymentConfig can be created on the hub, here is an example:
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: AddOnDeploymentConfig
+metadata:
+  name: volsync-addondeployconfig
+  namespace: default
+spec:
+  nodePlacement:
+    nodeSelector:
+      ttest: volsync
+    tolerations:
+    - effect: NoSchedule
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+```
+
+To actually tell the volsync deploy (via the operator subscription) to use the addonDeploymentConfig, it can either
+be specified as a default in the `ClusterManagementAddOn` or it can be specified on an individual deploy basis
+by setting it in the `ManagedClusterAddOn`.
+
+To set on a ManagedClusterAdddon, you can do it like this on the hub:
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ManagedClusterAddOn
+metadata:
+  name: volsync
+  namespace: cluster1
+spec:
+  configs:
+  - group: addon.open-cluster-management.io
+    resource: addondeploymentconfigs
+    name: volsync-addondeploymentconfig
+    namespace: default
+```
+
+If instead you want to set this as the default for any VolSync ManagedClusterAddOn then you can set it as the default
+in the ClusterManagementAddon on the hub.  Note that the default can be overridden by specifying the
+addondeploymentconfig in the ManagedClusterAddOn individually (as above).
+
+Example of setting a default in the ClusterManagementAddOn (on the hub):
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ClusterManagementAddOn
+metadata:
+  name: volsync
+spec:
+  addOnMeta:
+    displayName: VolSync
+    description: VolSync
+  supportedConfigs:
+  - group: addon.open-cluster-management.io
+    resource: addondeploymentconfigs
+    defaultConfig:
+      name: volsync-addondeployconfig
+      namespace: default
+```
+
 ## Development
 
 ## Installation

@@ -11,15 +11,18 @@ import (
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
+	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workapiv1 "open-cluster-management.io/api/work/v1"
 )
@@ -101,7 +104,7 @@ var manifestFilesAllNamespaces = []string{
 
 // Another agent with registration enabled.
 type volsyncAgent struct {
-	kubeConfig *rest.Config
+	addonClient addonv1alpha1client.Interface
 }
 
 var _ agent.AgentAddon = &volsyncAgent{}
@@ -116,7 +119,7 @@ func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster,
 
 	objects := []runtime.Object{}
 	for _, file := range getManifestFileList(addon) {
-		object, err := loadManifestFromFile(file, cluster, addon)
+		object, err := h.loadManifestFromFile(file, cluster, addon)
 		if err != nil {
 			return nil, err
 		}
@@ -164,6 +167,9 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 				HealthCheck: subHealthCheck,
 			},
 		},
+		SupportedConfigGVRs: []schema.GroupVersionResource{
+			addonfactory.AddOnDeploymentConfigGVR,
+		},
 	}
 }
 
@@ -184,7 +190,7 @@ func subHealthCheck(identifier workapiv1.ResourceIdentifier, result workapiv1.St
 	return nil
 }
 
-func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
+func (h *volsyncAgent) loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
 	addon *addonapiv1alpha1.ManagedClusterAddOn) (runtime.Object, error) {
 	manifestConfig := struct {
 		OperatorName           string
@@ -205,12 +211,26 @@ func loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
 		StartingCSV:            getStartingCSV(addon),
 	}
 
+	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
+
+	// Get values from addonDeploymentConfig
+	deploymentConfigValues, err := addonfactory.GetAddOnDeloymentConfigValues(
+		addonfactory.NewAddOnDeloymentConfigGetter(h.addonClient),
+		addonfactory.ToAddOnDeloymentConfigValues,
+	)(cluster, addon)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge manifestConfig and deploymentConfigValues
+	mergedValues := addonfactory.MergeValues(manifestConfigValues, deploymentConfigValues)
+
 	template, err := fs.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
 
-	raw := assets.MustCreateAssetFromTemplate(file, template, &manifestConfig).Data
+	raw := assets.MustCreateAssetFromTemplate(file, template, &mergedValues).Data
 	object, _, err := genericCodec.Decode(raw, nil, nil)
 	if err != nil {
 		klog.ErrorS(err, "Error decoding manifest file", "filename", file)
@@ -273,11 +293,16 @@ func clusterSupportsAddonInstall(cluster *clusterv1.ManagedCluster) bool {
 }
 
 func StartControllers(ctx context.Context, config *rest.Config) error {
+	addonClient, err := addonv1alpha1client.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	mgr, err := addonmanager.New(config)
 	if err != nil {
 		return err
 	}
-	err = mgr.AddAgent(&volsyncAgent{config})
+	err = mgr.AddAgent(&volsyncAgent{addonClient})
 	if err != nil {
 		return err
 	}

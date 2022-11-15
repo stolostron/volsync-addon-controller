@@ -112,7 +112,7 @@ var _ = Describe("Addoncontroller", func() {
 				Expect(manifestWork).ToNot(BeNil())
 			})
 
-			Context("When installing into volsync-system namespace (the default)", func() {
+			Context("When installing into openshift-operators namespace (the default)", func() {
 				var operatorSubscription *operatorsv1alpha1.Subscription
 
 				JustBeforeEach(func() {
@@ -132,6 +132,9 @@ var _ = Describe("Addoncontroller", func() {
 					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
 					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
 
+					// No addonDeploymentConfig in these tests, so the operatorSub should not have any Config specified
+					Expect(operatorSubscription.Spec.Config).To(BeNil())
+
 					// More specific checks done in tests
 				})
 
@@ -150,7 +153,9 @@ var _ = Describe("Addoncontroller", func() {
 
 				Context("When no annotations are on the managedclusteraddon", func() {
 					It("Should create the subscription (within the ManifestWork) with proper defaults", func() {
-						Expect(mcAddon.Spec.InstallNamespace).To(Equal(""))
+						// This ns is now the default in the mcao crd so will be used - note we ignore this
+						// and use openshift-operators (see the created subscription)
+						Expect(mcAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
 
 						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
 						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
@@ -330,6 +335,467 @@ var _ = Describe("Addoncontroller", func() {
 				}, timeout, interval).Should(BeTrue())
 			})
 		})
+
+		Describe("Node Selector/Tolerations tests", func() {
+			var clusterManagementAddon *addonv1alpha1.ClusterManagementAddOn
+
+			BeforeEach(func() {
+				// Create a clustermanagementaddon (this is a global resource)
+				clusterManagementAddon = &addonv1alpha1.ClusterManagementAddOn{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "volsync",
+					},
+					Spec: addonv1alpha1.ClusterManagementAddOnSpec{
+						AddOnMeta: addonv1alpha1.AddOnMeta{
+							DisplayName: "VolSync",
+							Description: "VolSync",
+						},
+						SupportedConfigs: []addonv1alpha1.ConfigMeta{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+							},
+						},
+					},
+				}
+			})
+			AfterEach(func() {
+				Expect(testK8sClient.Delete(testCtx, clusterManagementAddon)).To(Succeed())
+			})
+
+			JustBeforeEach(func() {
+				Expect(testK8sClient.Create(testCtx, clusterManagementAddon)).To(Succeed())
+			})
+
+			Context("When a ManagedClusterAddOn is created with node selectors and tolerations", func() {
+				var mcAddon *addonv1alpha1.ManagedClusterAddOn
+				var manifestWork *workv1.ManifestWork
+				var operatorSubscription *operatorsv1alpha1.Subscription
+
+				BeforeEach(func() {
+					// Create a ManagedClusterAddon for the mgd cluster using an addonDeploymentconfig
+					mcAddon = &addonv1alpha1.ManagedClusterAddOn{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "volsync",
+							Namespace: testManagedCluster.GetName(),
+						},
+						Spec: addonv1alpha1.ManagedClusterAddOnSpec{}, // Setting spec to empty
+					}
+				})
+				JustBeforeEach(func() {
+					// Create the managed cluster addon
+					Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+					manifestWork = &workv1.ManifestWork{}
+					// The controller should create a ManifestWork for this ManagedClusterAddon
+					Eventually(func() bool {
+						allMwList := &workv1.ManifestWorkList{}
+						Expect(testK8sClient.List(testCtx, allMwList,
+							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+
+						for _, mw := range allMwList.Items {
+							// addon-framework now creates manifestwork with "-0" prefix (to allow for
+							// creating multiple manifestworks if the content is large - will not be the case
+							// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
+							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
+								manifestWork = &mw
+								return true /* found the manifestwork */
+							}
+						}
+						return false
+					}, timeout, interval).Should(BeTrue())
+
+					Expect(manifestWork).ToNot(BeNil())
+
+					// Subscription
+					subMF := manifestWork.Spec.Workload.Manifests[0]
+					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+					Expect(err).NotTo(HaveOccurred())
+					var ok bool
+					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+					Expect(ok).To(BeTrue())
+					Expect(operatorSubscription).NotTo(BeNil())
+					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
+					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
+				})
+
+				Context("When no addonDeploymentConfig is referenced", func() {
+					It("Should create the sub in the manifestwork with no tolerations or selectors", func() {
+						Expect(operatorSubscription.Spec.Config).To(BeNil())
+					})
+
+					Context("When the managedclusteraddon is updated later with a addondeploymentconfig", func() {
+						var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+						nodePlacement := &addonv1alpha1.NodePlacement{
+							NodeSelector: map[string]string{
+								"place": "here",
+							},
+							Tolerations: []corev1.Toleration{
+								{
+									Key:      "node.kubernetes.io/unreachable",
+									Operator: corev1.TolerationOpExists,
+									Effect:   corev1.TaintEffectNoSchedule,
+								},
+							},
+						}
+
+						BeforeEach(func() {
+							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+						})
+						AfterEach(func() {
+							cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+						})
+
+						It("Should update the existing manifestwork with the addondeploymentconfig", func() {
+							Expect(operatorSubscription.Spec.Config).To(BeNil())
+
+							// Update the managedclusteraddon to reference the addonDeploymentConfig
+							Eventually(func() error {
+								err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if err != nil {
+									return err
+								}
+
+								// Update the managedclusteraddon - doing this in finally to avoid update issues if
+								// the controller is also updating the resource
+								mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+									{
+										ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+											Group:    "addon.open-cluster-management.io",
+											Resource: "addondeploymentconfigs",
+										},
+										ConfigReferent: addonv1alpha1.ConfigReferent{
+											Name:      addonDeploymentConfig.GetName(),
+											Namespace: addonDeploymentConfig.GetNamespace(),
+										},
+									},
+								}
+
+								return testK8sClient.Update(testCtx, mcAddon)
+							}, timeout, interval).Should(Succeed())
+
+							// Now reload the manifestwork, it should eventually be updated with the nodeselector
+							// and tolerations
+
+							var manifestWorkReloaded *workv1.ManifestWork
+							var operatorSubscriptionReloaded *operatorsv1alpha1.Subscription
+
+							Eventually(func() bool {
+								allMwList := &workv1.ManifestWorkList{}
+								Expect(testK8sClient.List(testCtx, allMwList,
+									client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+
+								for _, mw := range allMwList.Items {
+									// addon-framework now creates manifestwork with "-0" prefix (to allow for
+									// creating multiple manifestworks if the content is large - will not be the case
+									// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
+									if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
+										manifestWorkReloaded = &mw
+										break
+									}
+								}
+
+								if manifestWorkReloaded == nil {
+									return false
+								}
+
+								// Subscription
+								subMF := manifestWorkReloaded.Spec.Workload.Manifests[0]
+								subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+								Expect(err).NotTo(HaveOccurred())
+								var ok bool
+								operatorSubscriptionReloaded, ok = subObj.(*operatorsv1alpha1.Subscription)
+								Expect(ok).To(BeTrue())
+								Expect(operatorSubscriptionReloaded).NotTo(BeNil())
+
+								// If spec.config has been set, then it's been updated
+								return operatorSubscriptionReloaded.Spec.Config != nil
+							}, timeout, interval).Should(BeTrue())
+
+							Expect(operatorSubscriptionReloaded.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+							Expect(operatorSubscriptionReloaded.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
+						})
+					})
+				})
+
+				Context("When the addonDeploymentconfig has nodeSelector and no tolerations", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					nodePlacement := &addonv1alpha1.NodePlacement{
+						NodeSelector: map[string]string{
+							"a":    "b",
+							"1234": "5678",
+						},
+					}
+					BeforeEach(func() {
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(BeNil()) // No tolerations set
+					})
+				})
+
+				Context("When the addonDeployment config has tolerations and no nodeSelector", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					nodePlacement := &addonv1alpha1.NodePlacement{
+						Tolerations: []corev1.Toleration{
+							{
+								Key:      "node.kubernetes.io/unreachable",
+								Operator: corev1.TolerationOpExists,
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+						},
+					}
+					BeforeEach(func() {
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(BeNil()) // No selectors set
+					})
+				})
+
+				Context("When the addonDeployment config has nodeSelector and tolerations and nodeSelector", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					nodePlacement := &addonv1alpha1.NodePlacement{
+						NodeSelector: map[string]string{
+							"apples": "oranges",
+						},
+						Tolerations: []corev1.Toleration{
+							{
+								Key:      "node.kubernetes.io/unreachable",
+								Operator: corev1.TolerationOpExists,
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+							{
+								Key:      "fakekey",
+								Value:    "somevalue",
+								Operator: corev1.TolerationOpEqual,
+								Effect:   corev1.TaintEffectNoExecute,
+							},
+						},
+					}
+					BeforeEach(func() {
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
+					})
+				})
+			})
+
+			Context("When the volsync ClusterManagementAddOn has a default deployment config w/ node selectors/tolerations", func() {
+				var defaultAddonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+				var mcAddon *addonv1alpha1.ManagedClusterAddOn
+				var operatorSubscription *operatorsv1alpha1.Subscription
+				var defaultNodePlacement *addonv1alpha1.NodePlacement
+
+				myTolerationSeconds := int64(25)
+
+				BeforeEach(func() {
+					defaultNodePlacement = &addonv1alpha1.NodePlacement{
+						NodeSelector: map[string]string{
+							"testing":     "123",
+							"specialnode": "very",
+						},
+						Tolerations: []corev1.Toleration{
+							{
+								Key:      "node.kubernetes.io/unreachable",
+								Operator: corev1.TolerationOpExists,
+								Effect:   corev1.TaintEffectPreferNoSchedule,
+							},
+							{
+								Key:               "aaaaa",
+								Operator:          corev1.TolerationOpExists,
+								Effect:            corev1.TaintEffectNoExecute,
+								TolerationSeconds: &myTolerationSeconds,
+							},
+						},
+					}
+
+					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement)
+
+					// Update the ClusterManagementAddOn before we create it to set a default deployment config
+					clusterManagementAddon.Spec.SupportedConfigs[0].DefaultConfig = &addonv1alpha1.ConfigReferent{
+						Name:      defaultAddonDeploymentConfig.GetName(),
+						Namespace: defaultAddonDeploymentConfig.GetNamespace(),
+					}
+
+					// Create a ManagedClusterAddon for the mgd cluster using an addonDeploymentconfig
+					mcAddon = &addonv1alpha1.ManagedClusterAddOn{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "volsync",
+							Namespace: testManagedCluster.GetName(),
+							Annotations: map[string]string{
+								"operator-subscription-channel": "stable",
+							},
+						},
+						Spec: addonv1alpha1.ManagedClusterAddOnSpec{}, // Setting spec to empty
+					}
+				})
+				AfterEach(func() {
+					cleanupAddonDeploymentConfig(defaultAddonDeploymentConfig, true)
+				})
+
+				JustBeforeEach(func() {
+					// Create the managed cluster addon
+					Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+					manifestWork := &workv1.ManifestWork{}
+					// The controller should create a ManifestWork for this ManagedClusterAddon
+					Eventually(func() bool {
+						allMwList := &workv1.ManifestWorkList{}
+						Expect(testK8sClient.List(testCtx, allMwList,
+							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+
+						for _, mw := range allMwList.Items {
+							// addon-framework now creates manifestwork with "-0" prefix (to allow for
+							// creating multiple manifestworks if the content is large - will not be the case
+							// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
+							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
+								manifestWork = &mw
+								return true /* found the manifestwork */
+							}
+						}
+						return false
+					}, timeout, interval).Should(BeTrue())
+
+					Expect(manifestWork).ToNot(BeNil())
+
+					// Subscription
+					subMF := manifestWork.Spec.Workload.Manifests[0]
+					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+					Expect(err).NotTo(HaveOccurred())
+					var ok bool
+					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+					Expect(ok).To(BeTrue())
+					Expect(operatorSubscription).NotTo(BeNil())
+					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
+					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
+
+					// Check the annotation was still honoured
+					Expect(operatorSubscription.Spec.Channel).To(Equal("stable"))
+				})
+
+				Context("When a ManagedClusterAddOn is created with no addonConfig specified (the default)", func() {
+					It("Should create the sub in the manifestwork with the default node selector and tolerations", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(defaultNodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(defaultNodePlacement.Tolerations))
+					})
+				})
+
+				Context("When a ManagedClusterAddOn is created with addonConfig (node selectors and tolerations)", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					nodePlacement := &addonv1alpha1.NodePlacement{
+						NodeSelector: map[string]string{
+							"key1": "value1",
+							"key2": "value2",
+						},
+						Tolerations: []corev1.Toleration{
+							{
+								Key:      "node.kubernetes.io/unreachable",
+								Operator: corev1.TolerationOpExists,
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+							{
+								Key:      "mykey",
+								Value:    "myvalue",
+								Operator: corev1.TolerationOpEqual,
+								Effect:   corev1.TaintEffectNoExecute,
+							},
+						},
+					}
+					BeforeEach(func() {
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					It("Should create the sub in the manifestwork with the node selector and tolerations from "+
+						" the managedclusteraddon, not the defaults", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
+					})
+				})
+			})
+		})
 	})
 
 	Context("When a ManagedClusterExists with the install volsync addon label", func() {
@@ -390,7 +856,9 @@ var _ = Describe("Addoncontroller", func() {
 				}, vsAddon)
 			}, timeout, interval).Should(Succeed())
 
-			Expect(vsAddon.Spec.InstallNamespace).To(Equal(""))
+			// This ns is now the default in the mcao crd so will be used since we don't set it - note we ignore
+			// this and use openshift-operators (see the created subscription)
+			Expect(vsAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
 		})
 	})
 })
@@ -688,5 +1156,43 @@ func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(installedCSV
 				Conditions: []metav1.Condition{},
 			},
 		},
+	}
+}
+
+func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement) *addonv1alpha1.AddOnDeploymentConfig {
+	// Create a ns to host the addondeploymentconfig
+	// These can be accessed globally, so could be in the mgd cluster namespace
+	// but, creating a new ns for each one to keep the tests simple
+	tempNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-temp-",
+		},
+	}
+	Expect(testK8sClient.Create(testCtx, tempNamespace)).To(Succeed())
+
+	// Create an addonDeploymentConfig
+	customAddonDeploymentConfig := &addonv1alpha1.AddOnDeploymentConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-deployment-config-1",
+			Namespace: tempNamespace.GetName(),
+		},
+		Spec: addonv1alpha1.AddOnDeploymentConfigSpec{
+			NodePlacement: nodePlacement,
+		},
+	}
+	Expect(testK8sClient.Create(testCtx, customAddonDeploymentConfig)).To(Succeed())
+
+	return customAddonDeploymentConfig
+}
+
+func cleanupAddonDeploymentConfig(addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig, cleanupNamespace bool) {
+	// Assumes the addondeploymentconfig has its own namespace - cleans up the addondeploymentconfig
+	// and optionally the namespace as well
+	nsName := addonDeploymentConfig.GetNamespace()
+	Expect(testK8sClient.Delete(testCtx, addonDeploymentConfig)).To(Succeed())
+	if cleanupNamespace {
+		ns := &corev1.Namespace{}
+		Expect(testK8sClient.Get(testCtx, types.NamespacedName{Name: nsName}, ns)).To(Succeed())
+		Expect(testK8sClient.Delete(testCtx, ns)).To(Succeed())
 	}
 }

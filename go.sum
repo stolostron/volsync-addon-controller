@@ -353,8 +353,8 @@ github.com/openshift/client-go v0.0.0-20220525160904-9e1acff93e4a h1:ylsEgoC8Dlg
 github.com/openshift/client-go v0.0.0-20220525160904-9e1acff93e4a/go.mod h1:eDO5QeVi2IiXmDwB0e2z1DpAznWroZKe978pzZwFBzg=
 github.com/openshift/library-go v0.0.0-20220622115547-84d884f4c9f6 h1:lmfmsIGq62lmj17qrZh4Gbbb86WvJw6pLhCNwNjB2Yk=
 github.com/openshift/library-go v0.0.0-20220622115547-84d884f4c9f6/go.mod h1:AMZwYwSdbvALDl3QobEzcJ2IeDO7DYLsr42izKzh524=
-github.com/operator-framework/api v0.17.1 h1:J/6+Xj4IEV8C7hcirqUFwOiZAU3PbnJhWvB0/bB51c4=
-github.com/operator-framework/api v0.17.1/go.mod h1:kk8xJahHJR3bKqrA+A+1VIrhOTmyV76k+ARv+iV+u1Q=
+github.com/operator-framework/api v0.17.2 h1:Sn3OnzgpXfoc8xTEoV3hl+k7r6bGuhOLKbxip3vAPN0=
+github.com/operator-framework/api v0.17.2/go.mod h1:34tb98EwTN5SZLkgoxwvRkhMJKLHUWHOrrcv1ZwvEeA=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -496,8 +496,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
 golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20220214200702-86341886e292/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
-golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e h1:T8NU3HyQ8ClP4SEE+KbFlg6n0NhuTsN4MyznaarGsZM=
-golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+golang.org/x/crypto v0.1.0 h1:MDRAIl0xIo9Io2xV565hzXHw3zVseKrJKodhohM5CjU=
+golang.org/x/crypto v0.1.0/go.mod h1:RecgLatLF4+eUMCP1PoPZQb+cVrJcOPbHkTkbkB9sbw=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190306152737-a1d7652674e8/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190510132918-efd6b22b2522/go.mod h1:ZjyILWgesfNpC6sMxTJOJm9Kp84zZh5NQWvqDGG3Qr8=

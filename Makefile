@@ -25,7 +25,7 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 .PHONY: test
-TEST_ARGS ?= -progress -randomize-all -randomize-suites -slow-spec-threshold=30s -cover -coverprofile=cover.out -output-dir=.
+TEST_ARGS ?= -show-node-events -randomize-all -randomize-suites -poll-progress-after=30s -cover -coverprofile=cover.out -output-dir=.
 TEST_PACKAGES ?= ./...
 test: lint envtest ginkgo ## Run tests.
 	-rm -f cover.out

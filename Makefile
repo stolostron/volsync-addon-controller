@@ -27,12 +27,16 @@ $(LOCALBIN):
 .PHONY: test
 TEST_ARGS ?= -show-node-events -randomize-all -randomize-suites -poll-progress-after=30s -cover -coverprofile=cover.out -output-dir=.
 TEST_PACKAGES ?= ./...
-test: lint envtest ginkgo ## Run tests.
+test: goversion lint envtest ginkgo ## Run tests.
 	-rm -f cover.out
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) $(TEST_ARGS) $(TEST_PACKAGES)
 
+.PHONY: goversion
+goversion: ## Just print out go version being used
+	go version
+
 .PHONY: lint
-lint: golangci-lint ## Lint source code
+lint: goversion golangci-lint ## Lint source code
 	$(GOLANGCILINT) run --timeout 4m0s ./...
 
 .PHONY: golangci-lint

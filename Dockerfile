@@ -17,7 +17,9 @@ COPY controllers/ controllers/
 # Build
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
-RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller main.go
+ARG versionFromGit_arg="(unknown)"
+ARG commitFromGit_arg="(unknown)"
+RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
 # Final container
 FROM registry.access.redhat.com/ubi8-minimal

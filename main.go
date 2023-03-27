@@ -9,14 +9,17 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/version"
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
 
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
-	"open-cluster-management.io/addon-framework/pkg/version"
 
 	"github.com/stolostron/volsync-addon-controller/controllers"
 )
+
+var versionFromGit = "0.0.0"
+var commitFromGit = ""
 
 func main() {
 	pflag.CommandLine.SetNormalizeFunc(utilflag.WordSepNormalizeFunc)
@@ -46,7 +49,7 @@ func newCommand() *cobra.Command {
 		},
 	}
 
-	if v := version.Get().String(); len(v) == 0 {
+	if v := getVersion().String(); len(v) == 0 {
 		cmd.Version = "<unknown>"
 	} else {
 		cmd.Version = v
@@ -59,7 +62,7 @@ func newCommand() *cobra.Command {
 
 func newControllerCommand() *cobra.Command {
 	cmd := controllercmd.
-		NewControllerCommandConfig("volsync-addon-controller", version.Get(), runControllers).
+		NewControllerCommandConfig("volsync-addon-controller", getVersion(), runControllers).
 		NewCommand()
 	cmd.Use = "controller"
 	cmd.Short = "Start the volsync addon controller"
@@ -69,4 +72,11 @@ func newControllerCommand() *cobra.Command {
 
 func runControllers(ctx context.Context, controllerContext *controllercmd.ControllerContext) error {
 	return controllers.StartControllers(ctx, controllerContext.KubeConfig)
+}
+
+func getVersion() version.Info {
+	return version.Info{
+		GitCommit:  commitFromGit,
+		GitVersion: versionFromGit,
+	}
 }

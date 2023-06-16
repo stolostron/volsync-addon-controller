@@ -27,6 +27,45 @@ var _ = Describe("Addoncontroller", func() {
 	genericCodecs := serializer.NewCodecFactory(scheme.Scheme)
 	genericCodec := genericCodecs.UniversalDeserializer()
 
+	// Make sure a ClusterManagementAddOn exists for volsync or addon-framework will not reconcile
+	// VolSync ManagedClusterAddOns
+	var clusterManagementAddon *addonv1alpha1.ClusterManagementAddOn
+
+	BeforeEach(func() {
+		// clustermanagementaddon (this is a global resource)
+		clusterManagementAddon = &addonv1alpha1.ClusterManagementAddOn{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "volsync",
+			},
+			Spec: addonv1alpha1.ClusterManagementAddOnSpec{
+				AddOnMeta: addonv1alpha1.AddOnMeta{
+					DisplayName: "VolSync",
+					Description: "VolSync",
+				},
+				SupportedConfigs: []addonv1alpha1.ConfigMeta{
+					{
+						ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+							Group:    "addon.open-cluster-management.io",
+							Resource: "addondeploymentconfigs",
+						},
+					},
+				},
+				InstallStrategy: addonv1alpha1.InstallStrategy{
+					Type: addonv1alpha1.AddonInstallStrategyManual,
+				},
+			},
+		}
+	})
+	AfterEach(func() {
+		Expect(testK8sClient.Delete(testCtx, clusterManagementAddon)).To(Succeed())
+	})
+
+	JustBeforeEach(func() {
+		// Create the clustermanagementaddon here so tests can modify it in their BeforeEach()
+		// before we create it
+		Expect(testK8sClient.Create(testCtx, clusterManagementAddon)).To(Succeed())
+	})
+
 	Context("When a ManagedClusterExists", func() {
 		var testManagedCluster *clusterv1.ManagedCluster
 		var testManagedClusterNamespace *corev1.Namespace
@@ -337,38 +376,6 @@ var _ = Describe("Addoncontroller", func() {
 		})
 
 		Describe("Node Selector/Tolerations tests", func() {
-			var clusterManagementAddon *addonv1alpha1.ClusterManagementAddOn
-
-			BeforeEach(func() {
-				// Create a clustermanagementaddon (this is a global resource)
-				clusterManagementAddon = &addonv1alpha1.ClusterManagementAddOn{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "volsync",
-					},
-					Spec: addonv1alpha1.ClusterManagementAddOnSpec{
-						AddOnMeta: addonv1alpha1.AddOnMeta{
-							DisplayName: "VolSync",
-							Description: "VolSync",
-						},
-						SupportedConfigs: []addonv1alpha1.ConfigMeta{
-							{
-								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
-									Group:    "addon.open-cluster-management.io",
-									Resource: "addondeploymentconfigs",
-								},
-							},
-						},
-					},
-				}
-			})
-			AfterEach(func() {
-				Expect(testK8sClient.Delete(testCtx, clusterManagementAddon)).To(Succeed())
-			})
-
-			JustBeforeEach(func() {
-				Expect(testK8sClient.Create(testCtx, clusterManagementAddon)).To(Succeed())
-			})
-
 			Context("When a ManagedClusterAddOn is created with node selectors and tolerations", func() {
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
 				var manifestWork *workv1.ManifestWork
@@ -866,6 +873,45 @@ var _ = Describe("Addoncontroller", func() {
 var _ = Describe("Addon Status Update Tests", func() {
 	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
 
+	// Make sure a ClusterManagementAddOn exists for volsync or addon-framework will not reconcile
+	// VolSync ManagedClusterAddOns
+	var clusterManagementAddon *addonv1alpha1.ClusterManagementAddOn
+
+	BeforeEach(func() {
+		// clustermanagementaddon (this is a global resource)
+		clusterManagementAddon = &addonv1alpha1.ClusterManagementAddOn{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "volsync",
+			},
+			Spec: addonv1alpha1.ClusterManagementAddOnSpec{
+				AddOnMeta: addonv1alpha1.AddOnMeta{
+					DisplayName: "VolSync",
+					Description: "VolSync",
+				},
+				SupportedConfigs: []addonv1alpha1.ConfigMeta{
+					{
+						ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+							Group:    "addon.open-cluster-management.io",
+							Resource: "addondeploymentconfigs",
+						},
+					},
+				},
+				InstallStrategy: addonv1alpha1.InstallStrategy{
+					Type: addonv1alpha1.AddonInstallStrategyManual,
+				},
+			},
+		}
+	})
+	AfterEach(func() {
+		Expect(testK8sClient.Delete(testCtx, clusterManagementAddon)).To(Succeed())
+	})
+
+	JustBeforeEach(func() {
+		// Create the clustermanagementaddon here so tests can modify it in their BeforeEach()
+		// before we create it
+		Expect(testK8sClient.Create(testCtx, clusterManagementAddon)).To(Succeed())
+	})
+
 	Context("When a ManagedClusterExists", func() {
 		var testManagedCluster *clusterv1.ManagedCluster
 		var testManagedClusterNamespace *corev1.Namespace
@@ -984,7 +1030,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
 								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
-							return statusCondition.Reason == "NoProbeResult"
+							return statusCondition != nil
 						}, timeout, interval).Should(BeTrue())
 
 						Expect(statusCondition.Reason).To(Equal("NoProbeResult"))
@@ -1108,7 +1154,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 				It("ManagedClusterAddOn status should not be successful", func() {
 					var statusCondition *metav1.Condition
-					Eventually(func() *metav1.Condition {
+					Consistently(func() *metav1.Condition {
 						err := testK8sClient.Get(testCtx, types.NamespacedName{
 							Name:      "volsync",
 							Namespace: testManagedClusterNamespace.GetName(),
@@ -1117,13 +1163,17 @@ var _ = Describe("Addon Status Update Tests", func() {
 							return nil
 						}
 
+						logger.Info("### status should not be successful", "mcAddon.Status.Conditions", mcAddon.Status.Conditions)
 						statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
 							addonv1alpha1.ManagedClusterAddOnConditionAvailable)
 						return statusCondition
-					}, timeout, interval).ShouldNot(BeNil())
+						// addon-framework no longer sets a condition - simply doesn't declare it as available
+					}, fiveSeconds, interval).Should(BeNil())
 
-					Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
-					Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
+					/*
+						Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
+					*/
 				})
 			})
 		})

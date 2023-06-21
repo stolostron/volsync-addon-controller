@@ -30,9 +30,10 @@ var cancel context.CancelFunc
 var testK8sClient client.Client
 
 const (
-	//maxWait  = "60s"
-	timeout  = "10s"
-	interval = "1s"
+	maxWait     = "60s"
+	timeout     = "10s"
+	fiveSeconds = "5s"
+	interval    = "1s"
 )
 
 func TestControllers(t *testing.T) {

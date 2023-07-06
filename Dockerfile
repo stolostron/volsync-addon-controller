@@ -17,6 +17,7 @@ COPY controllers/ controllers/
 # Build
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
+ENV CGO_ENABLED=1
 RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller main.go
 
 # Final container

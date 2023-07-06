@@ -17,6 +17,7 @@ COPY controllers/ controllers/
 # Build
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
+ENV CGO_ENABLED=1
 ARG versionFromGit_arg="(unknown)"
 ARG commitFromGit_arg="(unknown)"
 RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go

@@ -1,5 +1,5 @@
 # Build the addon controller binary
-FROM registry.ci.openshift.org/stolostron/builder:go1.19-linux AS builder
+FROM registry.ci.openshift.org/stolostron/builder:go1.20-linux AS builder
 USER root
 
 WORKDIR /workspace

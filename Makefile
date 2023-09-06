@@ -9,7 +9,7 @@ ARCH := $(shell go env GOARCH)
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Helper software versions
-GOLANGCI_VERSION := v1.50.0
+GOLANGCI_VERSION := v1.54.2
 
 .PHONY: docker-build
 docker-build: test ## Build docker image
@@ -52,4 +52,4 @@ $(ENVTEST): $(LOCALBIN)
 GINKGO := $(LOCALBIN)/ginkgo
 ginkgo: $(GINKGO) ## Download ginkgo
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@latest
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.5.1

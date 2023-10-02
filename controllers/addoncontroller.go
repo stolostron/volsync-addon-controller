@@ -21,6 +21,7 @@ import (
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	"open-cluster-management.io/addon-framework/pkg/agent"
+	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
@@ -168,7 +169,7 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 			},
 		},
 		SupportedConfigGVRs: []schema.GroupVersionResource{
-			addonfactory.AddOnDeploymentConfigGVR,
+			addonframeworkutils.AddOnDeploymentConfigGVR,
 		},
 	}
 }

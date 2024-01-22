@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/onsi/ginkgo/v2 v2.15.0
-	github.com/onsi/gomega v1.30.0
+	github.com/onsi/gomega v1.31.1
 	github.com/openshift/library-go v0.0.0-20230321160537-6ac65c5454f9
 	github.com/operator-framework/api v0.20.0
 	github.com/spf13/cobra v1.8.0

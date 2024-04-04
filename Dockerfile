@@ -23,9 +23,9 @@ ARG commitFromGit_arg="(unknown)"
 RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
 # Final container
-FROM registry.access.redhat.com/ubi8-minimal:latest
+FROM registry.access.redhat.com/ubi9-minimal:latest
 
-RUN microdnf --refresh update && \
+RUN microdnf -y --refresh update && \
     microdnf clean all
 
 WORKDIR /

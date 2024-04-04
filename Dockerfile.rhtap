@@ -25,7 +25,7 @@ RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-
 # Final container
 FROM registry.redhat.io/ubi9/ubi-minimal:latest
 
-RUN microdnf --refresh update && \
+RUN microdnf -y --refresh update && \
     microdnf clean all
 
 WORKDIR /

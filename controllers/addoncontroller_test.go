@@ -1138,9 +1138,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 						Expect(statusCondition.Reason).To(Equal("ProbeAvailable"))
 						Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-						//TODO: should contain volsync in msg (i.e. "volsync addon is available"), requires change
-						// from addon-framework
-						Expect(statusCondition.Message).To(Equal("Addon is available"))
+						Expect(statusCondition.Message).To(ContainSubstring("volsync add-on is available"))
 					})
 				})
 			})

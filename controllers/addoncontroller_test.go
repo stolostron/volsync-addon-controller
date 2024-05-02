@@ -24,6 +24,8 @@ import (
 )
 
 var _ = Describe("Addoncontroller", func() {
+	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
+
 	genericCodecs := serializer.NewCodecFactory(scheme.Scheme)
 	genericCodec := genericCodecs.UniversalDeserializer()
 
@@ -64,6 +66,30 @@ var _ = Describe("Addoncontroller", func() {
 		// Create the clustermanagementaddon here so tests can modify it in their BeforeEach()
 		// before we create it
 		Expect(testK8sClient.Create(testCtx, clusterManagementAddon)).To(Succeed())
+	})
+
+	Describe("addon-framework checks - ClusterManagementAddon updated correctly", func() {
+		It("Should update the ClusterManagementAddon with addon.open-cluster-management.io/lifecycle annotation set to 'self'", func() {
+			// Addon controller should be updating the CMA (via addon-framework)
+			Eventually(func() bool {
+				// re-load ClusterManagementAddon and check that it gets updated
+				err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
+				if err != nil {
+					return false
+				}
+
+				v, ok := clusterManagementAddon.GetAnnotations()[addonv1alpha1.AddonLifecycleAnnotationKey]
+				if !ok {
+					return false
+				}
+				logger.Info("CMA", "clusterManagementAddon", &clusterManagementAddon)
+
+				// Annotation value should be set to "self"
+				Expect(v).To(Equal(addonv1alpha1.AddonLifecycleSelfManageAnnotationValue))
+
+				return true
+			}, timeout, interval).Should(BeTrue())
+		})
 	})
 
 	Context("When a ManagedClusterExists", func() {

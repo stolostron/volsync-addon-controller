@@ -240,7 +240,7 @@ func (h *volsyncAgent) loadManifestFromFile(file string, cluster *clusterv1.Mana
 	return object, nil
 }
 
-func getManifestFileList(addon *addonapiv1alpha1.ManagedClusterAddOn) []string {
+func getManifestFileList(_ *addonapiv1alpha1.ManagedClusterAddOn) []string {
 	installNamespace := getInstallNamespace()
 	if installNamespace == globalOperatorInstallNamespace {
 		// Do not need to create an operator group, namespace etc if installing into the global operator ns

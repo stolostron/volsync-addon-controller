@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/onsi/ginkgo/v2 v2.17.2
-	github.com/onsi/gomega v1.33.0
+	github.com/onsi/gomega v1.33.1
 	github.com/openshift/library-go v0.0.0-20240116081341-964bcb3f545c
 	github.com/operator-framework/api v0.20.0
 	github.com/spf13/cobra v1.8.0

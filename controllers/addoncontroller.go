@@ -46,11 +46,11 @@ const (
 	operatorName                   = "volsync-product"
 	globalOperatorInstallNamespace = "openshift-operators"
 
-	// Defaults for ACM-2.10
+	// Defaults for ACM-2.11
 	DefaultCatalogSource          = "redhat-operators"
 	DefaultCatalogSourceNamespace = "openshift-marketplace"
-	DefaultChannel                = "stable-0.9" // No "acm-x.y" channel anymore - aligning ACM-2.10 with stable-0.9
-	DefaultStartingCSV            = ""           // By default no starting CSV - will use the latest in the channel
+	DefaultChannel                = "stable-0.10" // No "acm-x.y" channel anymore - aligning ACM-2.11 with stable-0.10
+	DefaultStartingCSV            = ""            // By default no starting CSV - will use the latest in the channel
 	DefaultInstallPlanApproval    = "Automatic"
 )
 

@@ -215,9 +215,9 @@ func (h *volsyncAgent) loadManifestFromFile(file string, cluster *clusterv1.Mana
 	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
 
 	// Get values from addonDeploymentConfig
-	deploymentConfigValues, err := addonfactory.GetAddOnDeloymentConfigValues(
-		addonfactory.NewAddOnDeloymentConfigGetter(h.addonClient),
-		addonfactory.ToAddOnDeloymentConfigValues,
+	deploymentConfigValues, err := addonfactory.GetAddOnDeploymentConfigValues(
+		addonframeworkutils.NewAddOnDeploymentConfigGetter(h.addonClient),
+		addonfactory.ToAddOnDeploymentConfigValues,
 	)(cluster, addon)
 	if err != nil {
 		return nil, err

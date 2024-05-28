@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workv1 "open-cluster-management.io/api/work/v1"
@@ -714,7 +715,7 @@ var _ = Describe("Addoncontroller", func() {
 						Namespace: defaultAddonDeploymentConfig.GetNamespace(),
 					}
 
-					// Create a ManagedClusterAddon for the mgd cluster using an addonDeploymentconfig
+					// Create a ManagedClusterAddon for the mgd cluster
 					mcAddon = &addonv1alpha1.ManagedClusterAddOn{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "volsync",
@@ -733,6 +734,64 @@ var _ = Describe("Addoncontroller", func() {
 				JustBeforeEach(func() {
 					// Create the managed cluster addon
 					Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+					// Do extra updates on the CMA because no controllers run from the addon-framework itself
+					// update the clustermanagement addon (CMA) status with defaultconfigreferences
+					//
+					// Without these config references, the managedclusteraddon.status.configreferences won't get
+					// the desired config spechash set (they will for non-default addondeploymentconfigs, but not
+					// for default ones).
+					//
+					// So to work around for the sake of unit testing while we don't have these external
+					// controller(s) that update the CMA status, set the status.DefaultConfigReferences to the
+					// defaultaddonconfiguration we created earlier. The addon-framework controllers should update the
+					// spechash accordingly on CMA and MgdClusterAddon default.
+					Eventually(func() bool {
+						// re-load the clustermanagementaddon - Now manually update the status to simulate what
+						// another common controller will do (this is an external controller not started by the
+						// addon-framework)
+						err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
+						if err != nil {
+							return false
+						}
+						// Now update the status to simulate the external controller
+						clusterManagementAddon.Status.DefaultConfigReferences = []addonv1alpha1.DefaultConfigReference{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    addonframeworkutils.AddOnDeploymentConfigGVR.Group,
+									Resource: addonframeworkutils.AddOnDeploymentConfigGVR.Resource,
+								},
+								DesiredConfig: &addonv1alpha1.ConfigSpecHash{
+									ConfigReferent: addonv1alpha1.ConfigReferent{
+										Name:      defaultAddonDeploymentConfig.GetName(),
+										Namespace: defaultAddonDeploymentConfig.GetNamespace(),
+									},
+									// No Spec hash - should get filled in by addon-framework controllers
+								},
+							},
+						}
+						err = testK8sClient.Status().Update(testCtx, clusterManagementAddon)
+						if err != nil {
+							logger.Error(err, "Error updating CMA status")
+							return false
+						}
+						return true
+					}, timeout, interval).Should(BeTrue())
+
+					// Now reload the cma - and confirm that the specHash actually gets updated in the CMA.status.defaultconfigreferences
+					// (this part should get updated by the controllers started by the addon-framework)
+					Eventually(func() bool {
+						err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
+						if err != nil {
+							return false
+						}
+						if len(clusterManagementAddon.Status.DefaultConfigReferences) == 0 ||
+							clusterManagementAddon.Status.DefaultConfigReferences[0].DesiredConfig == nil ||
+							clusterManagementAddon.Status.DefaultConfigReferences[0].DesiredConfig.SpecHash == "" {
+							return false
+						}
+						return true
+					}, timeout, interval).Should(BeTrue())
 
 					manifestWork := &workv1.ManifestWork{}
 					// The controller should create a ManifestWork for this ManagedClusterAddon
@@ -772,6 +831,15 @@ var _ = Describe("Addoncontroller", func() {
 
 				Context("When a ManagedClusterAddOn is created with no addonConfig specified (the default)", func() {
 					It("Should create the sub in the manifestwork with the default node selector and tolerations", func() {
+						// re-load the addon - status should be updated with details of the default deploymentConfig
+						Expect(testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)).To(Succeed())
+						Expect(len(mcAddon.Status.ConfigReferences)).To(Equal(1)) // Should be 1 config ref (our default addondeploymentconfig)
+						defaultConfigRef := mcAddon.Status.ConfigReferences[0]
+						Expect(defaultConfigRef.DesiredConfig).NotTo(BeNil())
+						Expect(defaultConfigRef.DesiredConfig.Name).To(Equal(defaultAddonDeploymentConfig.GetName()))
+						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(defaultAddonDeploymentConfig.GetNamespace()))
+						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal("")) // SpecHash should be set by controller
+
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(defaultNodePlacement.NodeSelector))
 						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(defaultNodePlacement.Tolerations))
@@ -822,6 +890,15 @@ var _ = Describe("Addoncontroller", func() {
 
 					It("Should create the sub in the manifestwork with the node selector and tolerations from "+
 						" the managedclusteraddon, not the defaults", func() {
+						// re-load the addon - status should be updated with details of the default deploymentConfig
+						Expect(testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)).To(Succeed())
+						Expect(len(mcAddon.Status.ConfigReferences)).To(Equal(1)) // Should be 1 config ref (our custom addondeploymentconfig)
+						defaultConfigRef := mcAddon.Status.ConfigReferences[0]
+						Expect(defaultConfigRef.DesiredConfig).NotTo(BeNil())
+						Expect(defaultConfigRef.DesiredConfig.Name).To(Equal(addonDeploymentConfig.GetName()))
+						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(addonDeploymentConfig.GetNamespace()))
+						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal("")) // SpecHash should be set by controller
+
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
 						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
@@ -1178,7 +1255,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 				It("ManagedClusterAddOn status should not be successful", func() {
 					var statusCondition *metav1.Condition
-					Consistently(func() *metav1.Condition {
+					Eventually(func() *metav1.Condition {
 						err := testK8sClient.Get(testCtx, types.NamespacedName{
 							Name:      "volsync",
 							Namespace: testManagedClusterNamespace.GetName(),
@@ -1191,13 +1268,11 @@ var _ = Describe("Addon Status Update Tests", func() {
 						statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
 							addonv1alpha1.ManagedClusterAddOnConditionAvailable)
 						return statusCondition
-						// addon-framework no longer sets a condition - simply doesn't declare it as available
-					}, fiveSeconds, interval).Should(BeNil())
+						// addon-framework sets condition to Unknown
+					}, timeout, interval).Should(Not(BeNil()))
 
-					/*
-						Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
-						Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
-					*/
+					Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
+					Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
 				})
 			})
 		})

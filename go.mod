@@ -1,6 +1,6 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.22
+go 1.22.0
 
 require (
 	github.com/onsi/ginkgo/v2 v2.17.2
@@ -9,8 +9,8 @@ require (
 	github.com/operator-framework/api v0.20.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.29.2
-	k8s.io/apimachinery v0.29.2
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
 	k8s.io/client-go v0.29.2
 	k8s.io/component-base v0.29.1
 	k8s.io/klog/v2 v2.120.1
@@ -125,7 +125,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.29.0 // indirect
 	k8s.io/apiserver v0.29.0 // indirect
 	k8s.io/kms v0.29.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
+	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 	open-cluster-management.io/sdk-go v0.13.1-0.20240416030555-aa744f426379 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.28.0 // indirect

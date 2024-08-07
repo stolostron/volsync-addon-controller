@@ -1,7 +1,6 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.22
-toolchain go1.22.5
+go 1.22.0
 
 require (
 	github.com/onsi/ginkgo/v2 v2.17.2

@@ -111,7 +111,8 @@ type volsyncAgent struct {
 var _ agent.AgentAddon = &volsyncAgent{}
 
 func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster,
-	addon *addonapiv1alpha1.ManagedClusterAddOn) ([]runtime.Object, error) {
+	addon *addonapiv1alpha1.ManagedClusterAddOn,
+) ([]runtime.Object, error) {
 	if !clusterSupportsAddonInstall(cluster) {
 		klog.InfoS("Cluster is not OpenShift, not deploying addon", "addonName",
 			addonName, "cluster", cluster.GetName())
@@ -132,7 +133,7 @@ func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster,
 func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
 		AddonName: addonName,
-		//InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
+		// InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
 		InstallStrategy: agent.InstallByLabelStrategy(
 			"", /* this controller will ignore the ns in the spec so set to empty */
 			metav1.LabelSelector{
@@ -192,7 +193,8 @@ func subHealthCheck(identifier workapiv1.ResourceIdentifier, result workapiv1.St
 }
 
 func (h *volsyncAgent) loadManifestFromFile(file string, cluster *clusterv1.ManagedCluster,
-	addon *addonapiv1alpha1.ManagedClusterAddOn) (runtime.Object, error) {
+	addon *addonapiv1alpha1.ManagedClusterAddOn,
+) (runtime.Object, error) {
 	manifestConfig := struct {
 		OperatorName           string
 		InstallNamespace       string
@@ -276,8 +278,9 @@ func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
 }
 
 func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,
-	annotationName, defaultValue string) string {
-	// Allow to be overriden with an annotation
+	annotationName, defaultValue string,
+) string {
+	// Allow to be overridden with an annotation
 	annotationOverride, ok := addon.Annotations[annotationName]
 	if ok && annotationOverride != "" {
 		return annotationOverride

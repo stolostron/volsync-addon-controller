@@ -9,14 +9,14 @@ require (
 	github.com/operator-framework/api v0.26.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	k8s.io/api v0.30.3
-	k8s.io/apimachinery v0.30.3
-	k8s.io/client-go v0.30.3
-	k8s.io/component-base v0.30.3
+	k8s.io/api v0.30.4
+	k8s.io/apimachinery v0.30.4
+	k8s.io/client-go v0.30.4
+	k8s.io/component-base v0.30.4
 	k8s.io/klog/v2 v2.130.1
 	open-cluster-management.io/addon-framework v0.9.3
 	open-cluster-management.io/api v0.13.0
-	sigs.k8s.io/controller-runtime v0.18.4
+	sigs.k8s.io/controller-runtime v0.18.5
 )
 
 require (
@@ -121,9 +121,9 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v3 v3.14.3 // indirect
-	k8s.io/apiextensions-apiserver v0.30.3 // indirect
-	k8s.io/apiserver v0.30.3 // indirect
-	k8s.io/kms v0.30.3 // indirect
+	k8s.io/apiextensions-apiserver v0.30.4 // indirect
+	k8s.io/apiserver v0.30.4 // indirect
+	k8s.io/kms v0.30.4 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 	open-cluster-management.io/sdk-go v0.13.1-0.20240416030555-aa744f426379 // indirect

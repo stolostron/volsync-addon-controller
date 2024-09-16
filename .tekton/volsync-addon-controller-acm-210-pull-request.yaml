@@ -270,7 +270,7 @@ spec:
             - name: name
               value: deprecated-image-check
             - name: bundle
-              value: quay.io/redhat-appstudio-tekton-catalog/task-deprecated-image-check:0.4@sha256:1f17ef7ab9859d6e2215ef2ed532ebc15e516ba09226b8cae77907a7a8b7cedd
+              value: quay.io/redhat-appstudio-tekton-catalog/task-deprecated-image-check:0.4@sha256:954144f29267e117e291a4b2940a1d429e1ecd9cc919f3ac22bcbd97c3a45588
             - name: kind
               value: task
           resolver: bundles
@@ -339,7 +339,7 @@ spec:
             - name: name
               value: clamav-scan
             - name: bundle
-              value: quay.io/redhat-appstudio-tekton-catalog/task-clamav-scan:0.1@sha256:701f9c77bdf92642bdfe21eb4d3930e21d14438d9b1885d26cd4021019199724
+              value: quay.io/redhat-appstudio-tekton-catalog/task-clamav-scan:0.1@sha256:477f46a09f8347992d37de010768ded070f890cae1743d8955e2466aba1ee7bd
             - name: kind
               value: task
           resolver: bundles

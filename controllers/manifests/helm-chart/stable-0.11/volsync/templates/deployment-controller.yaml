@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "volsync.fullname" . }}
+  labels:
+    control-plane: {{ include "volsync.fullname" . }}-controller
+    {{- include "volsync.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      control-plane: {{ include "volsync.fullname" . }}-controller
+      {{- include "volsync.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        control-plane: {{ include "volsync.fullname" . }}-controller
+        {{- include "volsync.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "volsync.serviceAccountName" . }}
+      # The default for podSecurityContext is moved here so that we can probe
+      # the cluster and and adjust the template
+      securityContext:
+      {{- if empty .Values.podSecurityContext }}
+        runAsNonRoot: true
+        # When not OpenShift, we need to set the UID
+        {{- if not (.Capabilities.APIVersions.Has "security.openshift.io/v1/SecurityContextConstraints") }}
+        runAsUser: 65534
+        {{- end }}
+        # seccompProfile:
+        #   type: RuntimeDefault
+      {{- else }}
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kube-rbac-proxy
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          image: quay.io/brancz/kube-rbac-proxy:v0.18.0
+          args:
+            - --secure-listen-address=0.0.0.0:8443
+            - --upstream=http://127.0.0.1:8080/
+            - --logtostderr=true
+            - "--tls-min-version=VersionTLS12"
+            - --v=0
+            {{- if .Values.metrics.disableAuth }}
+            - --ignore-paths=/metrics
+            {{- end }}
+          ports:
+            - containerPort: 8443
+              protocol: TCP
+              name: https
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 5m
+              memory: 64Mi
+        - name: manager
+          args:
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=127.0.0.1:8080
+            - --leader-elect
+            - --rclone-container-image={{ include "container-image" (list . .Values.rclone) }}
+            - --restic-container-image={{ include "container-image" (list . .Values.restic) }}
+            - --rsync-container-image={{ include "container-image" (list . .Values.rsync) }}
+            - --rsync-tls-container-image={{ include "container-image" (list . (index .Values "rsync-tls") ) }}
+            - --syncthing-container-image={{ include "container-image" (list . .Values.syncthing) }}
+            - --scc-name=volsync-privileged-mover
+          command:
+            - /manager
+          image: "{{ include "container-image" (list . .Values.image) }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tempdir
+              mountPath: /tmp
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 10
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: tempdir
+          emptyDir:
+            medium: "Memory"

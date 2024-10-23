@@ -1,0 +1,1541 @@
+apiVersion: v1
+entries:
+  scribe:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Support for creating Restic backups
+        - kind: added
+          description: Metrics for monitoring replication status
+        - kind: added
+          description: Support for manually triggering replication
+        - kind: fixed
+          description: Fixed deployment on OpenShift w/ deployments not named "scribe"
+        - kind: fixed
+          description: Support retries in rsync pod to tolerate Submariner DNS delays
+        - kind: fixed
+          description: Custom rsync port number was being ignored
+        - kind: fixed
+          description: Don't overwrite annotations on the rsync Service
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.scribe.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.scribe.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+    apiVersion: v2
+    appVersion: 0.2.0
+    created: "2021-05-26T14:59:11.65736351-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 2a257f902583d10b21476a099c73bbc422100866cdd16a6a396613cd6b5ed83c
+    home: https://scribe-replication.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/scribe/master/docs/media/scribe.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.17.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: scribe
+    sources:
+    - https://github.com/backube/scribe
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/scribe-0.2.0.tgz
+    version: 0.2.0
+  - annotations:
+      artifacthub.io/changes: |
+        - Added - Initial release
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.scribe.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.scribe.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+    apiVersion: v2
+    appVersion: 0.1.0
+    created: "2021-02-10T15:57:27.206666757-05:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 6c4180ca11c3d77ea550be4984af84271a617416a219a28a7645a3f28926cb96
+    home: https://scribe-replication.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/scribe/master/docs/media/scribe.svg?sanitize=true
+    keywords:
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.17.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: scribe
+    sources:
+    - https://github.com/backube/scribe
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/scribe-0.1.0.tgz
+    version: 0.1.0
+  snapscheduler:
+  - annotations:
+      artifacthub.io/category: storage
+      artifacthub.io/changes: |
+        - kind: fixed
+          description: Add `metadata.namespace` to namespaced resources for compatibility with ArgoCD
+        - kind: security
+          description: Dependency updates
+      artifacthub.io/containsSecurityUpdates: "true"
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 3.4.0
+    created: "2024-05-09T14:45:48.823370837-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: d790bbcad2e0fab55b0fa1734ccccb5cc30eab75802df7200fe3ae4c43c83a8e
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-3.4.0.tgz
+    version: 3.4.0
+  - annotations:
+      artifacthub.io/category: storage
+      artifacthub.io/changes: |
+        - kind: added
+          description: Ability to set a `priorityClassName` for the operator via Helm chart
+        - kind: added
+          description: Ability to set pod labels and annotations for the operator via Helm chart
+        - kind: fixed
+          description: Improve cronspec validation to allow "slash" notation
+      artifacthub.io/containsSecurityUpdates: "true"
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 3.3.0
+    created: "2023-09-22T12:29:49.306127821-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 0a9d19b218018c579d203ef0a99f1d2adb1d68f9fd4dbaa6424274481fdd4268
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-3.3.0.tgz
+    version: 3.3.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Added ability to specify a container hash instead of just a tag
+        - kind: changed
+          description: Helm chart now directly manages CRD installation/upgrade
+        - kind: changed
+          description: Made CRD validation of cronspec more permissive
+        - kind: changed
+          description: Upgrade operator-sdk to 1.23.0
+        - kind: security
+          description: Upgrade quay.io/brancz/kube-rbac-proxy to v0.13.1
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 3.2.0
+    created: "2022-10-10T14:29:07.700963511-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 1f57ad883df99aa018d24b6681add915e2411ad0971bd41d231b194685890185
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-3.2.0.tgz
+    version: 3.2.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Added ability to control TopologySpreadConstraints
+        - kind: changed
+          description: Upgrade operator-sdk to 1.22.0
+        - kind: security
+          description: Upgrade quay.io/brancz/kube-rbac-proxy to v0.13.0
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 3.1.0
+    created: "2022-08-01T10:28:51.300925329-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: c9d9750781db0a72674d9ca0deecbca781fe0ccc5d567a05456200769ea59f51
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-3.1.0.tgz
+    version: 3.1.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
+          description: Snapshot objects are now accessed via `snapshot.storage.k8s.io/v1` API version
+        - kind: removed
+          description: Removed support for Kubernetes < 1.20
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 3.0.0
+    created: "2022-04-01T07:59:09.578372678-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 25c3d2b40b8deeb9e3bf894766025bf0320ae0d99fa9933c6d01243614c511c5
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-3.0.0.tgz
+    version: 3.0.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Ability to configure resource requests for RBAC proxy container when deploying via Helm chart
+        - kind: added
+          description: Ability to configure container image used for kube-rbac-proxy
+        - kind: changed
+          description: Moved operator to operator-sdk 1.15
+        - kind: changed
+          description: Build w/ Go 1.17
+        - kind: changed
+          description: Upgrade kube-rbac-proxy image to 0.11.0
+        - kind: changed
+          description: Deploy w/ single replica by default
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 2.1.0
+    created: "2021-12-17T08:40:06.681049238-05:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 30a6769ef073daebf569878920c095baa33d31369351e9ab6503f63a40f3a575
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.17.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-2.1.0.tgz
+    version: 2.1.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Added option to disable authentication on metrics endpoint
+        - kind: changed
+          description: Moved operator to operator-sdk 1.10
+        - kind: changed
+          description: Updated Helm deployment manifests to more closely follow operator-sdk scaffolding
+        - kind: changed
+          description: Added default host anti-affinity for the operator replicas
+        - kind: removed
+          description: Removed support for Kubernetes < 1.17
+        - kind: removed
+          description: Removed support v1alpha1 version of VolumeSnapshot
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/crdsExamples: |
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: daily
+          spec:
+            retention:
+              maxCount: 7
+            schedule: "0 0 * * *"
+        - apiVersion: v1
+          kind: SnapshotSchedule
+          metadata:
+            name: weekly
+          spec:
+            retention:
+              maxCount: 4
+            schedule: "0 0 * * 0"
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+    apiVersion: v2
+    appVersion: 2.0.0
+    created: "2021-08-03T12:03:17.620820506-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 77ebc6a70ce37abb6bbc46486e90b0ba000dcfae252bfd9f143270de8912684c
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.17.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-2.0.0.tgz
+    version: 2.0.0
+  - annotations:
+      artifacthub.io/changes: |
+        - Changed - Update snapscheduler to 1.2.0
+        - Changed - Switched operator base container to distroless
+        - Fixed - Update metrics Service port to properly expose metrics
+      artifacthub.io/crds: |
+        - kind: SnapshotSchedule
+          version: v1
+          name: snapshotschedule.snapscheduler.backube
+          displayName: Snapshot schedule
+          description: Defines a schedule for automated volume snapshots
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Seamless Upgrades
+    apiVersion: v2
+    appVersion: 1.2.0
+    created: "2021-04-05T14:39:11.687929418-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 5c0b9c1d9d7fcbc3bc4d8284c5683529bac0b2db35c568a4f273bedd5600b79f
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.13.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.3.0.tgz
+    version: 1.3.0
+  - apiVersion: v2
+    appVersion: 1.1.1
+    created: "2020-05-13T12:41:58.95997986-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: e478d86dafa3f217399f0d63da99b706deda451faea7d442c33c158d79544162
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.13.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.2.1.tgz
+    version: 1.2.1
+  - apiVersion: v2
+    appVersion: 1.1.1
+    created: "2020-04-24T15:52:16.930455083-04:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 5a9f0bc9bb4e8759cc44129135c102536954bb2a2787e05073bc73549c068601
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.13
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.2.0.tgz
+    version: 1.2.0
+  - apiVersion: v2
+    appVersion: 1.1.0
+    created: "2020-02-13T11:32:42.287824651-05:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: afa586df65a3b1a948c6b14137aee48cf655ecbb61b58d0b95c505032ff03ae1
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.13
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.1.0.tgz
+    version: 1.1.0
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2019-12-11T15:34:29.668126679-05:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 7acf73d8a36d22ccbf96e5ad619673146bd58b462a3f698837ea7a52d3e9606c
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.12
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.0.2.tgz
+    version: 1.0.2
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2019-12-10T12:53:37.561790319-05:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: 82e0d04c37389ebe711cc2db50533573ef3e95f9df23cd9a6dc501938e78c77e
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg?sanitize=true
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.12
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.0.1.tgz
+    version: 1.0.1
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2019-12-10T09:48:48.334448149-05:00"
+    description: An operator to take scheduled snapshots of Kubernetes persistent
+      volumes
+    digest: c23fe8eb7e42c0978dc2e472900d1141e92b7ff9e04b3fc25c2c6ff1940b8808
+    home: https://backube.github.io/snapscheduler/
+    icon: https://raw.githubusercontent.com/backube/snapscheduler/master/docs/media/snapscheduler.svg
+    keywords:
+    - csi
+    - scheduler
+    - snapshot
+    - storage
+    kubeVersion: ^1.12
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: snapscheduler
+    sources:
+    - https://github.com/backube/snapscheduler
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/snapscheduler-1.0.0.tgz
+    version: 1.0.0
+  volsync:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
+          description: Restic updated to v0.17.0
+        - kind: changed
+          description: Syncthing updated to v1.27.12
+        - kind: added
+          description: moverAffinity added to spec to allow for specifying the podAffinity assigned to a VolSync mover pod
+        - kind: added
+          description: cleanupTempPVC option added for direct users to allow for deleting the dynamically provisioned destination PVC after a completed replication.
+        - kind: added
+          description: cleanupCachePVC option for restic to allow for deleting the cache PVC after a completed replication.
+        - kind: added
+          description: enableFileDeletion restic option to allow for restoring to an existing PVC (for example running multiple restores) and delete files that do not exist in the backup being restored.
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.11.0-rc.1
+    created: "2024-10-23T10:49:58.389396-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 10f7efb5e4c08f727813ff488231a926043303b3fd17a0e3775be2e7f4f3e3ec
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.11.0-rc.1.tgz
+    version: 0.11.0-rc.1
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: fixed
+          description: Fix for rsync-tls to handle replication when there are many files in the pvc root
+        - kind: fixed
+          description: Fix for rsync-tls to handle files in the pvc root that start with `#`
+        - kind: changed
+          description: Syncthing upgraded to v1.27.8
+        - kind: added
+          description: Debug mode for mover jobs added
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.10.0
+    created: "2024-07-31T11:53:45.708912-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 3a4bba5b71d8571497dca7196110ed01384ea9ef46219b134c64b42ce79f2ea7
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.10.0.tgz
+    version: 0.10.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: fixed
+          description: Allow restic restore from empty or non-initialized path
+        - kind: fixed
+          description: Ignore lost+found on restic backup when checking for empty source volume
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.9.1
+    created: "2024-04-12T11:08:04.506390109-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 7c0c55db2b9d2a0f6178b6bf127c87d554c90f86ee3c1a60c74db2ee56c25fe3
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.9.1.tgz
+    version: 0.9.1
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
+          description: Syncthing upgraded to v1.27.3
+        - kind: changed
+          description: Restic upgraded to v0.16.4
+        - kind: changed
+          description: Updated release to build on golang 1.21
+        - kind: added
+          description: Allow customization of resource requirements and limits on mover job containers
+        - kind: added
+          description: Include additional restic environment variables from the restic secret (RESTIC_REST_USERNAME, RESTIC_REST_PASSWORD, AZURE_ENDPOINT_SUFFIX)
+        - kind: added
+          description: Copy trigger pvc annotations.  Allows copy-trigger annotations on the pvc to pause/trigger snapshots or clones in a sync
+        - kind: added
+          description: Include all RCLONE_ env vars from the rclone secret to be set in the rclone mover job
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.9.0
+    created: "2024-03-20T13:51:21.026168-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 21be54e34ef8b5113b93c0e1f530a507e06201f397b70131e9e05526d3bc457c
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.9.0.tgz
+    version: 0.9.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
+          description: Updated release to build on golang 1.21
+        - kind: fixed
+          description: Capture error on restic restore when connecting to repository
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.8.1
+    created: "2024-03-07T15:38:09.052295869-05:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 67ed96efef3f02a1903561800e44baf7e3ab7e25c43c2b63107d9c74d1684a9f
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.8.1.tgz
+    version: 0.8.1
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Restic - ReplicationSource/ReplicationDestination can now specify a CustomCA that is from a configmap rather than only from a secret
+        - kind: added
+          description: Rclone - ReplicationSource/ReplicationDestination can now specify a CustomCA that is contained in either a configmap or secret
+        - kind: added
+          description: Restic - New option to run a restic unlock before the backup in the next sync
+        - kind: added
+          description: Restic - Allow passing through of RCLONE_ env vars from the restic secret to the mover job
+        - kind: added
+          description: Volume Populator added for ReplicationDestinations
+        - kind: changed
+          description: Syncthing upgraded to v1.25.0
+        - kind: changed
+          description: Restic upgraded to v0.16.2
+        - kind: changed
+          description: Rclone upgraded to v1.63.1
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.8.0
+    created: "2023-11-13T10:39:56.826130326-05:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 4f9024e350dc6771fd6135849d75caf25692964fe3c7615655b9ec1135b44794
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.8.0.tgz
+    version: 0.8.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
+          description: Modified leader election settings (LeaseDuration, RenewDeadline, RetryPeriod)
+        - kind: changed
+          description: Syncthing upgraded to v1.23.2
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.7.1
+    created: "2023-03-31T10:41:14.677009-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: a571064c122a902d9d0bf41290c61e801dbacd386d61d179119f24ddb6ccbf30
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.7.1.tgz
+    version: 0.7.1
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: New rsync-tls mover that uses stunnel instead of sshd for rsync traffic
+        - kind: added
+          description: moverServiceAccount parameter in the spec for advanced users
+        - kind: changed
+          description: All movers except rsync-ssh run as a normal user (see docs)
+        - kind: changed
+          description: VolSync now uses a single container image for the controller and all movers
+        - kind: changed
+          description: Rclone upgraded to v1.61.1
+        - kind: changed
+          description: Restic upgraded to 0.15.1
+        - kind: changed
+          description: Syncthing upgraded to v1.23.1
+        - kind: fixed
+          description: Syncthing should ignore lost+found directory
+        - kind: security
+          description: kube-rbac-proxy upgraded to 0.14.0
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.7.0
+    created: "2023-03-14T17:07:18.728815-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 869ff72f1f7caf0787716f22c9a951175141f8e0cd7d0dafd90ec8f8c7fa8709
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.7.0.tgz
+    version: 0.7.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: fixed
+          description: set HTTP_PROXY, HTTPS_PROXY, NO_PROXY on mover if cluster-wide proxy.
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.6.1
+    created: "2023-03-07T15:51:36.977329-05:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: bec8a60ef60aef94b76b3ad5f8c016077512ae239368e8c62a4f594632dba587
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.6.1.tgz
+    version: 0.6.1
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Chart option "manageCRDs" to control whether the chart installs/upgrades/removes the Volsync CRDs. This is a breaking change that requires manually annotating/labeling the CRDs in order to upgrade from a previous chart release. See the project Changelog for more specific instructions.
+        - kind: security
+          description: kube-rbac-proxy upgraded to 0.13.1
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.6.0
+    created: "2023-02-23T15:41:48.526287-05:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: ac1bdf1c423e02a562e4f9e725292e8c0179464f3d02864c18f9c97c2cfec33b
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.6.0.tgz
+    version: 0.6.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Users can manually label destination Snapshot objects with volsync.backube/do-not-delete to prevent VolSync from deleting them. This provides a way for users to avoid having a Snapshot deleted while they are trying to use it. Users are then responsible for deleting the Snapshot.
+        - kind: added
+          description: Publish Kubernetes Events to help troubleshooting
+        - kind: added
+          description: New Syncthing-based mover for live data replication
+        - kind: changed
+          description: Operator-SDK upgraded to 1.22.0
+        - kind: changed
+          description: Rclone upgraded to 1.59.0
+        - kind: changed
+          description: Restic upgraded to 0.13.1
+        - kind: changed
+          description: Syncthing upgraded to 1.20.1
+        - kind: security
+          description: kube-rbac-proxy upgraded to 0.13.0
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+    apiVersion: v2
+    appVersion: 0.5.2
+    created: "2023-02-23T13:04:27.538877-05:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 365430802ef16daf96acca1eec97461877026ff5687e362e375d2e2214ef2c08
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    - email: tflower@redhat.com
+      name: Tesshu Flower
+      url: https://github.com/tesshuflower
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.5.2.tgz
+    version: 0.5.2
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Users can manually label destination Snapshot objects with volsync.backube/do-not-delete to prevent VolSync from deleting them. This provides a way for users to avoid having a Snapshot deleted while they are trying to use it. Users are then responsible for deleting the Snapshot.
+        - kind: added
+          description: Publish Kubernetes Events to help troubleshooting
+        - kind: added
+          description: New Syncthing-based mover for live data replication
+        - kind: changed
+          description: Operator-SDK upgraded to 1.22.0
+        - kind: changed
+          description: Rclone upgraded to 1.59.0
+        - kind: changed
+          description: Restic upgraded to 0.13.1
+        - kind: changed
+          description: Syncthing upgraded to 1.20.1
+        - kind: security
+          description: kube-rbac-proxy upgraded to 0.13.0
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+      artifacthub.io/signKey: |
+        fingerprint: 74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+        url: https://keys.openpgp.org/vks/v1/by-fingerprint/74FC7E7EFD0FF009513CC9E39360133DBD1FF508
+    apiVersion: v2
+    appVersion: 0.5.0
+    created: "2022-09-15T15:43:36.914468236-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 9c8dc3360e7af972133a5971a1d608051b7dfcf56100e0197b6c2aceb0a676c5
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.5.0.tgz
+    version: 0.5.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Add ability to specify container images by SHA hash
+        - kind: added
+          description: Added additional field LastSyncStartTime to CRD status
+        - kind: changed
+          description: Rename CopyMethod None to Direct to make it more descriptive
+        - kind: changed
+          description: Switch snapshot API version from snapshot.storage.k8s.io/v1beta1 to snapshot.storage.k8s.io/v1 so that VolSync remains compatible w/ Kubernetes 1.24+
+        - kind: changed
+          description: Minimum Kubernetes version is now 1.20
+        - kind: fixed
+          description: Resources weren't always removed after each sync iteration
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+    apiVersion: v2
+    appVersion: 0.4.0
+    created: "2022-05-12T12:10:38.804139777-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: cdf942e206b20881b62ba4bdc33aa136cd5e436d45daf9345698829549b6ee3a
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.20.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.4.0.tgz
+    version: 0.4.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Introduced internal "Mover" interface to make adding/maintaining data movers more modular
+        - kind: added
+          description: Added a Condition on the CRs to indicate whether they are synchronizing or idle
+        - kind: added
+          description: Rclone - Added unit tests
+        - kind: changed
+          description: Renamed project - Scribe is now VolSync
+        - kind: changed
+          description: CRD group has changed from `scribe.backube` to `volsync.backube`
+        - kind: changed
+          description: CRD status Conditions changed from operator-lib to the implementation in apimachinery
+        - kind: fixed
+          description: Restic - Fixed error when the volume is empty
+      artifacthub.io/crds: |
+        - kind: ReplicationDestination
+          version: v1alpha1
+          name: replicationdestination.volsync.backube
+          displayName: Replication destination
+          description: Defines the destination of a replicated volume
+        - kind: ReplicationSource
+          version: v1alpha1
+          name: replicationsource.volsync.backube
+          displayName: Replication source
+          description: Defines the source of a replicated volume
+      artifacthub.io/license: AGPL-3.0-or-later
+      artifacthub.io/operator: "true"
+      artifacthub.io/operatorCapabilities: Basic Install
+    apiVersion: v2
+    appVersion: 0.3.0
+    created: "2021-08-05T09:55:56.152697988-04:00"
+    description: Asynchronous data replication for Kubernetes
+    digest: 8907e0b8b60225e26a58027a2013e8f89dc8d8ba76dd86ced6774cc148d98dea
+    home: https://volsync.readthedocs.io/
+    icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+    keywords:
+    - backup
+    - csi
+    - data
+    - disaster recovery
+    - replication
+    - storage
+    kubeVersion: ^1.17.0-0
+    maintainers:
+    - email: jstrunk@redhat.com
+      name: John Strunk
+      url: https://github.com/JohnStrunk
+    name: volsync
+    sources:
+    - https://github.com/backube/volsync
+    type: application
+    urls:
+    - https://backube.github.io/helm-charts/volsync-0.3.0.tgz
+    version: 0.3.0
+generated: "2024-10-23T10:49:58.383638-04:00"

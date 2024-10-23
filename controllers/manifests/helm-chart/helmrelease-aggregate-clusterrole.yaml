@@ -1,0 +1,10 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: open-cluster-management:volsync-addon-helmreleases-aggregate-clusterrole
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["apps.open-cluster-management.io"]
+    resources: ["helmreleases"]
+    verbs: ["get", "create", "delete", "update"]

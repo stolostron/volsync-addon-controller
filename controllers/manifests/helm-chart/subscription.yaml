@@ -1,0 +1,21 @@
+apiVersion: apps.open-cluster-management.io/v1
+kind: Subscription
+metadata:
+  name: {{ .OperatorName }}
+  namespace: {{ .OperatorInstallNamespace }}
+  #labels:
+  #  apps.open-cluster-management.io/reconcile-rate: medium # TODO: necessary?
+  annotations:
+    apps.open-cluster-management.io/hosting-subscription: "test/test"
+spec:
+  name: {{ .HelmChartName }}
+  #source: {{ .HelmSource }}
+  #channel: hbackubegithubio-helm-charts-ns/hbackubegithubio-helm-charts #FIXME: create channel
+  channel: open-cluster-management/volsync-helm-charts #FIXME: create channel
+  packageFilter:
+    version: "{{ .HelmPackageVersion }}"
+  packageOverrides:
+  - packageAlias: {{ .HelmChartName }}
+    packageName: {{ .HelmChartName }}
+  placement:
+    local: true

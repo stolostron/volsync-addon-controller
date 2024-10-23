@@ -1,0 +1,34 @@
+apiVersion: apps.open-cluster-management.io/v1
+kind: HelmRelease
+metadata:
+  #labels:
+  #  app: test-vs
+  #  app.kubernetes.io/part-of: test-vs
+  #  apps.open-cluster-management.io/reconcile-rate: medium
+  name: {{ .HelmChartName }}
+  namespace: {{ .OperatorInstallNamespace }}
+  #ownerReferences:
+  #- apiVersion: apps.open-cluster-management.io/v1
+  #  kind: Subscription
+  #  name: test-vs-subscription-1-local
+  #  uid: 5b574f7a-e611-4553-8046-21ffe8e19eaf
+repo:
+  chartName: {{ .HelmChartName }}
+  #digest: 3a4bba5b71d8571497dca7196110ed01384ea9ef46219b134c64b42ce79f2ea7
+  source:
+    #type: helmrepo
+    #helmRepo:
+    #  urls:
+    #  - {{ .HelmSource }}
+    #  #- https://backube.github.io/helm-charts/volsync-0.10.0.tgz
+    type: github
+    github:
+      urls:
+        # FIXME:
+        - https://github.com/tesshuflower/volsync
+      chartPath: helm/volsync
+      branch: main
+
+  version: "{{ .HelmPackageVersion }}"
+spec:
+  "": ""

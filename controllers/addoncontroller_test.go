@@ -1372,6 +1372,42 @@ var _ = Describe("Addon Status Update Tests", func() {
 				}, timeout, interval).Should(Succeed())
 			})
 
+			Context("When the managed cluster is not OpenShift", func() {
+				BeforeEach(func() {
+					// Delete label that indicates the mgd cluster is openshift
+					delete(testManagedCluster.Labels, "vendor")
+				})
+
+				It("Should create a manifestwork containing helm charts", func() {
+					// The controller should create a ManifestWork for this ManagedClusterAddon
+					// Fake out that the ManifestWork is applied and available
+					Eventually(func() error {
+						var manifestWork *workv1.ManifestWork
+
+						allMwList := &workv1.ManifestWorkList{}
+						Expect(testK8sClient.List(testCtx, allMwList,
+							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+
+						for _, mw := range allMwList.Items {
+							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
+								manifestWork = &mw
+								break
+							}
+						}
+
+						if manifestWork == nil {
+							return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
+						}
+
+						logger.Info("manifestWork", "manifestWork", manifestWork)
+
+						//TODO: check contents of manifestwork
+
+						return nil
+					}, timeout, interval).Should(Succeed())
+				})
+			})
+
 			Context("When the managed cluster is an OpenShiftCluster and manifestwork is available", func() {
 				JustBeforeEach(func() {
 					// The controller should create a ManifestWork for this ManagedClusterAddon
@@ -1540,35 +1576,38 @@ var _ = Describe("Addon Status Update Tests", func() {
 				})
 			})
 
-			Context("When the managed cluster is not an OpenShift cluster", func() {
-				BeforeEach(func() {
-					// remove labels from the managedcluster resource before it's created
-					// to simulate a "non-OpenShift" cluster
-					testManagedCluster.Labels = map[string]string{}
-				})
+			/* TODO: put back after we fix the status - will need to check for successful status
+			               now that we support OpenShift clusters
+						Context("When the managed cluster is not an OpenShift cluster", func() {
+							BeforeEach(func() {
+								// remove labels from the managedcluster resource before it's created
+								// to simulate a "non-OpenShift" cluster
+								testManagedCluster.Labels = map[string]string{}
+							})
 
-				It("ManagedClusterAddOn status should not be successful", func() {
-					var statusCondition *metav1.Condition
-					Eventually(func() *metav1.Condition {
-						err := testK8sClient.Get(testCtx, types.NamespacedName{
-							Name:      "volsync",
-							Namespace: testManagedClusterNamespace.GetName(),
-						}, mcAddon)
-						if err != nil {
-							return nil
-						}
+							It("ManagedClusterAddOn status should not be successful", func() {
+								var statusCondition *metav1.Condition
+								Eventually(func() *metav1.Condition {
+									err := testK8sClient.Get(testCtx, types.NamespacedName{
+										Name:      "volsync",
+										Namespace: testManagedClusterNamespace.GetName(),
+									}, mcAddon)
+									if err != nil {
+										return nil
+									}
 
-						logger.Info("### status should not be successful", "mcAddon.Status.Conditions", mcAddon.Status.Conditions)
-						statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
-							addonv1alpha1.ManagedClusterAddOnConditionAvailable)
-						return statusCondition
-						// addon-framework sets condition to Unknown
-					}, timeout, interval).Should(Not(BeNil()))
+									logger.Info("### status should not be successful", "mcAddon.Status.Conditions", mcAddon.Status.Conditions)
+									statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
+										addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+									return statusCondition
+									// addon-framework sets condition to Unknown
+								}, timeout, interval).Should(Not(BeNil()))
 
-					Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
-					Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
-				})
-			})
+								Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
+								Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
+							})
+						})
+			*/
 		})
 	})
 })

@@ -3,6 +3,7 @@ module github.com/stolostron/volsync-addon-controller
 go 1.22.0
 
 require (
+	github.com/go-logr/logr v1.4.2
 	github.com/onsi/ginkgo/v2 v2.20.0
 	github.com/onsi/gomega v1.34.1
 	github.com/openshift/library-go v0.0.0-20240116081341-964bcb3f545c
@@ -14,8 +15,8 @@ require (
 	k8s.io/client-go v0.30.4
 	k8s.io/component-base v0.30.4
 	k8s.io/klog/v2 v2.130.1
-	open-cluster-management.io/addon-framework v0.9.3
-	open-cluster-management.io/api v0.13.0
+	open-cluster-management.io/addon-framework v0.10.0
+	open-cluster-management.io/api v0.14.0
 	sigs.k8s.io/controller-runtime v0.18.5
 )
 
@@ -41,7 +42,6 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.2 // indirect
@@ -126,7 +126,7 @@ require (
 	k8s.io/kms v0.30.4 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
-	open-cluster-management.io/sdk-go v0.13.1-0.20240416030555-aa744f426379 // indirect
+	open-cluster-management.io/sdk-go v0.13.1-0.20240416062924-20307e6fe090 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.29.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect

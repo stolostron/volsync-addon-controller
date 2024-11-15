@@ -55,7 +55,6 @@ func StartControllers(ctx context.Context, config *rest.Config) error {
 	return nil
 }
 
-// Move this somewhere common
 func startAdditionalInformers(ctx context.Context, config *rest.Config,
 ) (managedClusterAddOnMetadataInformer informers.GenericInformer,
 	managedClusterMetadataInformer informers.GenericInformer,

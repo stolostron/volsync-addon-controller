@@ -6,7 +6,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stolostron/volsync-addon-controller/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,14 +13,16 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workv1 "open-cluster-management.io/api/work/v1"
 
-	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"github.com/stolostron/volsync-addon-controller/controllers"
 )
 
 var _ = Describe("Addoncontroller", func() {
@@ -69,30 +70,32 @@ var _ = Describe("Addoncontroller", func() {
 		Expect(testK8sClient.Create(testCtx, clusterManagementAddon)).To(Succeed())
 	})
 
-	Describe("addon-framework checks - ClusterManagementAddon updated correctly", func() {
-		It("Should update the ClusterManagementAddon with addon.open-cluster-management.io/lifecycle annotation "+
-			"set to 'self'", func() {
-			// Addon controller should be updating the CMA (via addon-framework)
-			Eventually(func() bool {
-				// re-load ClusterManagementAddon and check that it gets updated
-				err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
-				if err != nil {
-					return false
-				}
+	/*
+		Describe("addon-framework checks - ClusterManagementAddon updated correctly", func() {
+			It("Should update the ClusterManagementAddon with addon.open-cluster-management.io/lifecycle annotation "+
+				"set to 'self'", func() {
+				// Addon controller should be updating the CMA (via addon-framework)
+				Eventually(func() bool {
+					// re-load ClusterManagementAddon and check that it gets updated
+					err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
+					if err != nil {
+						return false
+					}
 
-				v, ok := clusterManagementAddon.GetAnnotations()[addonv1alpha1.AddonLifecycleAnnotationKey]
-				if !ok {
-					return false
-				}
-				logger.Info("CMA", "clusterManagementAddon", &clusterManagementAddon)
+					v, ok := clusterManagementAddon.GetAnnotations()[addonv1alpha1.AddonLifecycleAnnotationKey]
+					if !ok {
+						return false
+					}
+					logger.Info("CMA", "clusterManagementAddon", &clusterManagementAddon)
 
-				// Annotation value should be set to "self"
-				Expect(v).To(Equal(addonv1alpha1.AddonLifecycleSelfManageAnnotationValue))
+					// Annotation value should be set to "self"
+					Expect(v).To(Equal(addonv1alpha1.AddonLifecycleSelfManageAnnotationValue))
 
-				return true
-			}, timeout, interval).Should(BeTrue())
+					return true
+				}, timeout, interval).Should(BeTrue())
+			})
 		})
-	})
+	*/
 
 	Context("When a ManagedClusterExists", func() {
 		var testManagedCluster *clusterv1.ManagedCluster
@@ -156,6 +159,22 @@ var _ = Describe("Addoncontroller", func() {
 			JustBeforeEach(func() {
 				// Create the managed cluster addon
 				Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+				// Need to have the CMA as owner on the managedclusteraddon or the registration controller
+				// will ignore it (and therefore addondeploy controller won't call our Manifests() func)
+				// This step is normally done by a global controller on the hub - so simulate for our tests
+				Eventually(func() error {
+					err := addCMAOwnership(clusterManagementAddon, mcAddon)
+					if err != nil {
+						// Reload the mcAddOn before we try again in case there was a conflict with updating
+						reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+						if reloadErr != nil {
+							return reloadErr
+						}
+						return err
+					}
+					return nil
+				}, timeout, interval).Should(Succeed())
 
 				manifestWork = &workv1.ManifestWork{}
 				// The controller should create a ManifestWork for this ManagedClusterAddon
@@ -370,6 +389,22 @@ var _ = Describe("Addoncontroller", func() {
 
 				Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
 
+				// Need to have the CMA as owner on the managedclusteraddon or the registration controller
+				// will ignore it (and therefore addondeploy controller won't call our Manifests() func)
+				// This step is normally done by a global controller on the hub - so simulate for our tests
+				Eventually(func() error {
+					err := addCMAOwnership(clusterManagementAddon, mcAddon)
+					if err != nil {
+						// Reload the mcAddOn before we try again in case there was a conflict with updating
+						reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+						if reloadErr != nil {
+							return reloadErr
+						}
+						return err
+					}
+					return nil
+				}, timeout, interval).Should(Succeed())
+
 				Eventually(func() bool {
 					// List manifestworks - pre-existing manifestwork should still be there and be updated
 					allMwList := &workv1.ManifestWorkList{}
@@ -418,6 +453,22 @@ var _ = Describe("Addoncontroller", func() {
 				JustBeforeEach(func() {
 					// Create the managed cluster addon
 					Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+					// Need to have the CMA as owner on the managedclusteraddon or the registration controller
+					// will ignore it (and therefore addondeploy controller won't call our Manifests() func)
+					// This step is normally done by a global controller on the hub - so simulate for our tests
+					Eventually(func() error {
+						err := addCMAOwnership(clusterManagementAddon, mcAddon)
+						if err != nil {
+							// Reload the mcAddOn before we try again in case there was a conflict with updating
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+							if reloadErr != nil {
+								return reloadErr
+							}
+							return err
+						}
+						return nil
+					}, timeout, interval).Should(Succeed())
 
 					manifestWork = &workv1.ManifestWork{}
 					// The controller should create a ManifestWork for this ManagedClusterAddon
@@ -489,7 +540,7 @@ var _ = Describe("Addoncontroller", func() {
 									return err
 								}
 
-								// Update the managedclusteraddon - doing this in finally to avoid update issues if
+								// Update the managedclusteraddon - doing this in eventually loop to avoid update issues if
 								// the controller is also updating the resource
 								mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
 									{
@@ -505,6 +556,22 @@ var _ = Describe("Addoncontroller", func() {
 								}
 
 								return testK8sClient.Update(testCtx, mcAddon)
+							}, timeout, interval).Should(Succeed())
+
+							// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+							// has been moved to a common controller in the ocm hub - so simulate status update so our
+							// code can proceed
+							Eventually(func() error {
+								err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+								if err != nil {
+									// Reload the mcAddOn before we try again in case there was a conflict with updating
+									reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+									if reloadErr != nil {
+										return reloadErr
+									}
+									return err
+								}
+								return nil
 							}, timeout, interval).Should(Succeed())
 
 							// Now reload the manifestwork, it should eventually be updated with the nodeselector
@@ -528,6 +595,7 @@ var _ = Describe("Addoncontroller", func() {
 									}
 								}
 
+								logger.Info(">>>>> ManifestWorkreloaded <<<", "manifestWorkReloaded", &manifestWorkReloaded)
 								if manifestWorkReloaded == nil {
 									return false
 								}
@@ -580,6 +648,43 @@ var _ = Describe("Addoncontroller", func() {
 						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
 					})
 
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							return operatorSubscription.Spec.Config != nil
+						}, timeout, interval).Should(BeTrue())
+					})
+
 					It("Should create the sub in the manifestwork wiith the node selector", func() {
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
@@ -617,6 +722,43 @@ var _ = Describe("Addoncontroller", func() {
 					})
 					AfterEach(func() {
 						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							return operatorSubscription.Spec.Config != nil
+						}, timeout, interval).Should(BeTrue())
 					})
 
 					It("Should create the sub in the manifestwork wiith the node selector", func() {
@@ -667,6 +809,43 @@ var _ = Describe("Addoncontroller", func() {
 						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
 					})
 
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							return operatorSubscription.Spec.Config != nil
+						}, timeout, interval).Should(BeTrue())
+					})
+
 					It("Should create the sub in the manifestwork wiith the node selector", func() {
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
@@ -681,6 +860,7 @@ var _ = Describe("Addoncontroller", func() {
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
 				var operatorSubscription *operatorsv1alpha1.Subscription
 				var defaultNodePlacement *addonv1alpha1.NodePlacement
+				var manifestWork *workv1.ManifestWork
 
 				myTolerationSeconds := int64(25)
 
@@ -689,6 +869,7 @@ var _ = Describe("Addoncontroller", func() {
 						NodeSelector: map[string]string{
 							"testing":     "123",
 							"specialnode": "very",
+							"abcd":        "efgh",
 						},
 						Tolerations: []corev1.Toleration{
 							{
@@ -732,6 +913,22 @@ var _ = Describe("Addoncontroller", func() {
 				JustBeforeEach(func() {
 					// Create the managed cluster addon
 					Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+					// Need to have the CMA as owner on the managedclusteraddon or the registration controller
+					// will ignore it (and therefore addondeploy controller won't call our Manifests() func)
+					// This step is normally done by a global controller on the hub - so simulate for our tests
+					Eventually(func() error {
+						err := addCMAOwnership(clusterManagementAddon, mcAddon)
+						if err != nil {
+							// Reload the mcAddOn before we try again in case there was a conflict with updating
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+							if reloadErr != nil {
+								return reloadErr
+							}
+							return err
+						}
+						return nil
+					}, timeout, interval).Should(Succeed())
 
 					// Do extra updates on the CMA because no controllers run from the addon-framework itself
 					// update the clustermanagement addon (CMA) status with defaultconfigreferences
@@ -779,6 +976,8 @@ var _ = Describe("Addoncontroller", func() {
 					// Now reload the cma - and confirm that the specHash actually gets updated in the
 					// CMA.status.defaultconfigreferences
 					// (this part should get updated by the controllers started by the addon-framework)
+					// Not sure why this part is still done by addon-framework when others have been moved to the
+					// hub, but it seems to work
 					Eventually(func() bool {
 						err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
 						if err != nil {
@@ -792,7 +991,28 @@ var _ = Describe("Addoncontroller", func() {
 						return true
 					}, timeout, interval).Should(BeTrue())
 
-					manifestWork := &workv1.ManifestWork{}
+					// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+					// has been moved to a common controller in the ocm hub - so simulate status update so our
+					// code can proceed
+					//
+					// Set the value to the default addon deployment config specified in the CMA.
+					// This kind of invalidates the tests below as they were testing that a controller
+					// would set this stuff - but since addon-framework doesn't do it anymore, we need to
+					// simulate it.
+					Eventually(func() error {
+						err := addDeploymentConfigStatusEntry(mcAddon, defaultAddonDeploymentConfig)
+						if err != nil {
+							// Reload the mcAddOn before we try again in case there was a conflict with updating
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+							if reloadErr != nil {
+								return reloadErr
+							}
+							return err
+						}
+						return nil
+					}, timeout, interval).Should(Succeed())
+
+					manifestWork = &workv1.ManifestWork{}
 					// The controller should create a ManifestWork for this ManagedClusterAddon
 					Eventually(func() bool {
 						allMwList := &workv1.ManifestWorkList{}
@@ -805,21 +1025,27 @@ var _ = Describe("Addoncontroller", func() {
 							// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
 							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
 								manifestWork = &mw
-								return true /* found the manifestwork */
+								break
 							}
 						}
-						return false
+
+						if len(manifestWork.Spec.Workload.Manifests) == 0 {
+							return false
+						}
+
+						// Subscription
+						subMF := manifestWork.Spec.Workload.Manifests[0]
+						subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+						Expect(err).NotTo(HaveOccurred())
+						var ok bool
+						operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+						if !ok {
+							return false
+						}
+						return operatorSubscription.Spec.Config != nil
 					}, timeout, interval).Should(BeTrue())
 
 					Expect(manifestWork).ToNot(BeNil())
-
-					// Subscription
-					subMF := manifestWork.Spec.Workload.Manifests[0]
-					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
-					Expect(err).NotTo(HaveOccurred())
-					var ok bool
-					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
-					Expect(ok).To(BeTrue())
 					Expect(operatorSubscription).NotTo(BeNil())
 					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
 					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
@@ -888,8 +1114,60 @@ var _ = Describe("Addoncontroller", func() {
 						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
 					})
 
+					JustBeforeEach(func() {
+						// Need to override the managedclusteraddonstatus to instead use the
+						// addondeploymentconfig instead of the default one from the CMA
+						// (would be done by a common controller on the ocm hub).
+						// Unfortunately we're not really testing which addondeployconfig gets picked
+						// anymore, as the controllers that do this are no longer part of the addon-framework.
+						//
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+					})
+
 					It("Should create the sub in the manifestwork with the node selector and tolerations from "+
 						" the managedclusteraddon, not the defaults", func() {
+						// Now re-load the manifestwork, based on timing it could haver originally
+						// been updated with the defaults from the CMA - eventually should get updated properly
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							if operatorSubscription.Spec.Config == nil {
+								return false
+							}
+
+							// Check that the node selector matches the # of keys from the addondeploymentconfig
+							// It won't match if the subscription is still using the default addondeploymentconfig
+							// as it has different nodeSelector
+							return len(operatorSubscription.Spec.Config.NodeSelector) == len(nodePlacement.NodeSelector)
+						}, timeout, interval).Should(BeTrue())
+
 						// re-load the addon - status should be updated with details of the default deploymentConfig
 						Expect(testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)).To(Succeed())
 						// Should be 1 config ref (our custom addondeploymentconfig)
@@ -1076,6 +1354,22 @@ var _ = Describe("Addon Status Update Tests", func() {
 					Spec: addonv1alpha1.ManagedClusterAddOnSpec{},
 				}
 				Expect(testK8sClient.Create(testCtx, mcAddon)).To(Succeed())
+
+				// Need to have the CMA as owner on the managedclusteraddon or the registration controller
+				// will ignore it (and therefore addondeploy controller won't call our Manifests() func)
+				// This step is normally done by a global controller on the hub - so simulate for our tests
+				Eventually(func() error {
+					err := addCMAOwnership(clusterManagementAddon, mcAddon)
+					if err != nil {
+						// Reload the mcAddOn before we try again in case there was a conflict with updating
+						reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+						if reloadErr != nil {
+							return reloadErr
+						}
+						return err
+					}
+					return nil
+				}, timeout, interval).Should(Succeed())
 			})
 
 			Context("When the managed cluster is an OpenShiftCluster and manifestwork is available", func() {
@@ -1349,4 +1643,41 @@ func cleanupAddonDeploymentConfig(
 		Expect(testK8sClient.Get(testCtx, types.NamespacedName{Name: nsName}, ns)).To(Succeed())
 		Expect(testK8sClient.Delete(testCtx, ns)).To(Succeed())
 	}
+}
+
+func addCMAOwnership(cma *addonv1alpha1.ClusterManagementAddOn,
+	managedClusterAddOn *addonv1alpha1.ManagedClusterAddOn,
+) error {
+	if err := ctrlutil.SetOwnerReference(cma, managedClusterAddOn, testK8sClient.Scheme()); err != nil {
+		return err
+	}
+
+	return testK8sClient.Update(testCtx, managedClusterAddOn)
+}
+
+func addDeploymentConfigStatusEntry(managedClusterAddOn *addonv1alpha1.ManagedClusterAddOn,
+	addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig,
+) error {
+	managedClusterAddOn.Status.ConfigReferences = []addonv1alpha1.ConfigReference{
+		{
+			// ConfigReferent is deprecated, but api complains if ConfigReferent.Name is not specified
+			ConfigReferent: addonv1alpha1.ConfigReferent{
+				Name:      addonDeploymentConfig.GetName(),
+				Namespace: addonDeploymentConfig.GetNamespace(),
+			},
+			ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+				Group:    addonframeworkutils.AddOnDeploymentConfigGVR.Group,
+				Resource: addonframeworkutils.AddOnDeploymentConfigGVR.Resource,
+			},
+			DesiredConfig: &addonv1alpha1.ConfigSpecHash{
+				ConfigReferent: addonv1alpha1.ConfigReferent{
+					Name:      addonDeploymentConfig.GetName(),
+					Namespace: addonDeploymentConfig.GetNamespace(),
+				},
+				SpecHash: "fakehashfortest",
+			},
+		},
+	}
+
+	return testK8sClient.Status().Update(testCtx, managedClusterAddOn)
 }

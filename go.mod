@@ -3,7 +3,6 @@ module github.com/stolostron/volsync-addon-controller
 go 1.22.0
 
 require (
-	github.com/go-logr/logr v1.4.2
 	github.com/onsi/ginkgo/v2 v2.20.0
 	github.com/onsi/gomega v1.34.1
 	github.com/openshift/library-go v0.0.0-20240116081341-964bcb3f545c
@@ -16,7 +15,7 @@ require (
 	k8s.io/component-base v0.30.4
 	k8s.io/klog/v2 v2.130.1
 	open-cluster-management.io/addon-framework v0.10.0
-	open-cluster-management.io/api v0.14.0
+	open-cluster-management.io/api v0.15.0
 	sigs.k8s.io/controller-runtime v0.18.5
 )
 
@@ -42,6 +41,7 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.2 // indirect

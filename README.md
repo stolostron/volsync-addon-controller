@@ -95,12 +95,12 @@ that you want to deploy the VolSync operator on.
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: redhat-operators
+  name: volsync-operators
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
   image: <REPLACE_IMAGE>
-  displayName: My Operator Catalog
+  displayName: VolSync Operator Catalog
   publisher: grpc
 ```
 
@@ -130,12 +130,12 @@ Example edited CatalogSource:
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: redhat-operators
+  name: volsync-operators
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
   image: brew.registry.redhat.io/rh-osbs/iib:199646`
-  displayName: My Operator Catalog
+  displayName: VolSync Operator Catalog
   publisher: grpc
 ```
 
@@ -241,7 +241,7 @@ spec:
   configs:
   - group: addon.open-cluster-management.io
     resource: addondeploymentconfigs
-    name: volsync-addondeploymentconfig
+    name: volsync-addondeployconfig
     namespace: default
 ```
 

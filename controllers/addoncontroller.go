@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"embed"
 	"fmt"
 	"strings"
@@ -9,17 +8,14 @@ import (
 	"github.com/openshift/library-go/pkg/assets"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
-	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
@@ -133,15 +129,6 @@ func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster,
 func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
 		AddonName: addonName,
-		// InstallStrategy: agent.InstallAllStrategy(operatorSuggestedNamespace),
-		InstallStrategy: agent.InstallByLabelStrategy(
-			"", /* this controller will ignore the ns in the spec so set to empty */
-			metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					ManagedClusterInstallVolSyncLabel: ManagedClusterInstallVolSyncLabelValue,
-				},
-			},
-		),
 		HealthProber: &agent.HealthProber{
 			Type: agent.HealthProberTypeWork,
 			WorkProber: &agent.WorkHealthProber{
@@ -294,29 +281,4 @@ func clusterSupportsAddonInstall(cluster *clusterv1.ManagedCluster) bool {
 		return false
 	}
 	return true
-}
-
-func StartControllers(ctx context.Context, config *rest.Config) error {
-	addonClient, err := addonv1alpha1client.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	mgr, err := addonmanager.New(config)
-	if err != nil {
-		return err
-	}
-	err = mgr.AddAgent(&volsyncAgent{addonClient})
-	if err != nil {
-		return err
-	}
-
-	err = mgr.Start(ctx)
-	if err != nil {
-		return err
-	}
-
-	<-ctx.Done()
-
-	return nil
 }

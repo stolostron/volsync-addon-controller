@@ -11,10 +11,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"open-cluster-management.io/addon-framework/pkg/basecontroller/factory"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
+	"open-cluster-management.io/sdk-go/pkg/basecontroller/factory"
 )
+
+const installByLabelControllerName = "addon-installbylabel-controller"
 
 /*
  * This controller is here to maintain the functionality of installing by label.
@@ -46,23 +48,27 @@ func newAddonInstallByLabelController(
 		managedClusterMetadataLister:      managedClusterMetadataInformer.Lister(),
 	}
 
-	return factory.New().WithFilteredEventsInformersQueueKeysFunc(
-		func(obj runtime.Object) []string {
-			key, _ := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			return []string{key}
-		},
-		func(obj interface{}) bool {
-			accessor, _ := meta.Accessor(obj)
+	syncCtx := factory.NewSyncContext(installByLabelControllerName)
 
-			// This controller only cares about our volsync install label
-			// ignore any managedcluster resource that doesn't have the label
-			// Note if the label is removed, we do not clean up the managedclusteraddon
-			// (but we never had this functionality).
-			return isVolSyncLabelTrue(accessor)
-		},
-		managedClusterMetadataInformer.Informer()).
+	return factory.New().WithSyncContext(syncCtx).
+		WithFilteredEventsInformersQueueKeysFunc(
+			func(obj runtime.Object) []string {
+				key, _ := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				return []string{key}
+			},
+			func(obj interface{}) bool {
+				accessor, _ := meta.Accessor(obj)
+
+				// This controller only cares about our volsync install label
+				// ignore any managedcluster resource that doesn't have the label
+				// Note if the label is removed, we do not clean up the managedclusteraddon
+				// (but we never had this functionality).
+				return isVolSyncLabelTrue(accessor)
+			},
+			managedClusterMetadataInformer.Informer()).
 		//ResyncEvery(10*time.Minute).
-		WithSync(c.sync).ToController("addon-installbylabel-controller")
+		WithSync(c.sync).
+		ToController(installByLabelControllerName)
 }
 
 func (c *addonInstallByLabelController) sync(ctx context.Context,

@@ -14,21 +14,24 @@ import (
 
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
+	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 )
 
 type manifestHelper interface {
-	loadManifests(values addonfactory.Values) ([]runtime.Object, error)
+	loadManifests() ([]runtime.Object, error)
 }
 
-func getManifestHelper(embedFS embed.FS, cluster *clusterv1.ManagedCluster, addon *addonapiv1alpha1.ManagedClusterAddOn,
+func getManifestHelper(embedFS embed.FS, addonClient addonv1alpha1client.Interface,
+	cluster *clusterv1.ManagedCluster, addon *addonapiv1alpha1.ManagedClusterAddOn,
 ) manifestHelper {
 	clusterIsOpenShift := isOpenShift(cluster)
 
 	mhc := manifestHelperCommon{
-		embedFS: embedFS,
-		cluster: cluster,
-		addon:   addon,
+		embedFS:     embedFS,
+		addonClient: addonClient,
+		cluster:     cluster,
+		addon:       addon,
 	}
 
 	if shouldDeployVolSyncAsOperator(clusterIsOpenShift, addon) {
@@ -39,9 +42,10 @@ func getManifestHelper(embedFS embed.FS, cluster *clusterv1.ManagedCluster, addo
 }
 
 type manifestHelperCommon struct {
-	embedFS embed.FS
-	cluster *clusterv1.ManagedCluster
-	addon   *addonapiv1alpha1.ManagedClusterAddOn
+	embedFS     embed.FS
+	addonClient addonv1alpha1client.Interface
+	cluster     *clusterv1.ManagedCluster
+	addon       *addonapiv1alpha1.ManagedClusterAddOn
 }
 
 func (mhc manifestHelperCommon) loadManifestsFromFiles(fileList []string, values addonfactory.Values,

@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
@@ -52,10 +51,10 @@ const (
 	DefaultInstallPlanApproval    = "Automatic"
 
 	// Defaults for ACM-2.13 helm-based deploy
-	DefaultHelmSource                   = "https://backube.github.io/helm-charts"
-	DefaultHelmChartName                = "volsync"
-	DefaultHelmOperatorInstallNamespace = "volsync-system"
-	DefaultHelmPackageVersion           = "^0.10" //FIXME: update
+	//DefaultHelmSource           = "https://backube.github.io/helm-charts"
+	DefaultHelmChartName        = "volsync"
+	DefaultHelmInstallNamespace = "volsync-system"
+	DefaultHelmPackageVersion   = "^0.10" //FIXME: update
 )
 
 const (
@@ -112,17 +111,8 @@ var _ agent.AgentAddon = &volsyncAgent{}
 func (h *volsyncAgent) Manifests(cluster *clusterv1.ManagedCluster,
 	addon *addonapiv1alpha1.ManagedClusterAddOn,
 ) ([]runtime.Object, error) {
-	isClusterOpenShift := isOpenShift(cluster)
-
-	// TODO: remove isClusterOpenShift from params - may need to separate getting values for each deploy type
-	values, err := h.getValuesForManifest(addon, cluster, isClusterOpenShift)
-	if err != nil {
-		return nil, err
-	}
-
-	mh := getManifestHelper(embedFS, cluster, addon)
-
-	return mh.loadManifests(values)
+	mh := getManifestHelper(embedFS, h.addonClient, cluster, addon)
+	return mh.loadManifests()
 }
 
 func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
@@ -195,102 +185,6 @@ func subHealthCheck(identifier workapiv1.ResourceIdentifier, result workapiv1.St
 	}
 	klog.InfoS("health check successful")
 	return nil
-}
-
-func (h *volsyncAgent) getValuesForManifest(addon *addonapiv1alpha1.ManagedClusterAddOn,
-	cluster *clusterv1.ManagedCluster, isClusterOpenShift bool,
-) (addonfactory.Values, error) {
-	manifestConfig := struct {
-		OperatorInstallNamespace string
-
-		// OpenShift target cluster parameters - for OLM operator install of VolSync
-		OperatorName           string
-		OperatorGroupSpec      string
-		CatalogSource          string
-		CatalogSourceNamespace string
-		InstallPlanApproval    string
-		Channel                string
-		StartingCSV            string
-
-		// Helm based install parameters for non-OpenShift target clusters
-		HelmSource         string
-		HelmChartName      string
-		HelmPackageVersion string
-	}{
-		OperatorInstallNamespace: getOperatorInstallNamespace(addon, isClusterOpenShift),
-
-		OperatorName:           operatorName,
-		CatalogSource:          getCatalogSource(addon),
-		CatalogSourceNamespace: getCatalogSourceNamespace(addon),
-		InstallPlanApproval:    getInstallPlanApproval(addon),
-		Channel:                getChannel(addon),
-		StartingCSV:            getStartingCSV(addon),
-
-		HelmSource:         getHelmSource(addon),
-		HelmChartName:      getHelmChartName(addon),
-		HelmPackageVersion: getHelmPackageVersion(addon),
-	}
-
-	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
-
-	// Get values from addonDeploymentConfig
-	deploymentConfigValues, err := addonfactory.GetAddOnDeploymentConfigValues(
-		addonframeworkutils.NewAddOnDeploymentConfigGetter(h.addonClient),
-		addonfactory.ToAddOnDeploymentConfigValues,
-	)(cluster, addon)
-	if err != nil {
-		return nil, err
-	}
-
-	// Merge manifestConfig and deploymentConfigValues
-	mergedValues := addonfactory.MergeValues(manifestConfigValues, deploymentConfigValues)
-
-	return mergedValues, nil
-}
-
-func getOperatorInstallNamespace(_ *addonapiv1alpha1.ManagedClusterAddOn, isClusterOpenShift bool) string {
-	if isClusterOpenShift {
-		// The only namespace supported is openshift-operators, so ignore whatever is in the spec
-		return globalOperatorInstallNamespace
-	}
-
-	// non-OpenShift target cluster
-	return DefaultHelmOperatorInstallNamespace //TODO: allow overriding
-}
-
-func getCatalogSource(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	return getAnnotationOverrideOrDefault(addon, AnnotationCatalogSourceOverride, DefaultCatalogSource)
-}
-
-func getCatalogSourceNamespace(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	return getAnnotationOverrideOrDefault(addon, AnnotationCatalogSourceNamespaceOverride,
-		DefaultCatalogSourceNamespace)
-}
-
-func getInstallPlanApproval(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	return getAnnotationOverrideOrDefault(addon, AnnotationInstallPlanApprovalOverride, DefaultInstallPlanApproval)
-}
-
-func getChannel(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	return getAnnotationOverrideOrDefault(addon, AnnotationChannelOverride, DefaultChannel)
-}
-
-func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
-	return getAnnotationOverrideOrDefault(addon, AnnotationStartingCSVOverride, DefaultStartingCSV)
-}
-
-func getHelmSource(_ *addonapiv1alpha1.ManagedClusterAddOn) string {
-	//TODO: allow overriding with annotations?
-	return DefaultHelmSource
-}
-
-func getHelmChartName(_ *addonapiv1alpha1.ManagedClusterAddOn) string {
-	return DefaultHelmChartName
-}
-
-func getHelmPackageVersion(_ *addonapiv1alpha1.ManagedClusterAddOn) string {
-	//TODO: allow overriding with annotations?
-	return DefaultHelmPackageVersion
 }
 
 func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,

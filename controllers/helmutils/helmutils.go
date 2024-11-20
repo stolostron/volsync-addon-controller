@@ -182,7 +182,6 @@ func LoadEmbeddedHelmIndexFile() (*repo.IndexFile, error) {
 }
 
 func EnsureEmbeddedChart(chartName, version string) (*chart.Chart, error) {
-	//TODO: locking, ensure local chart etc
 	indexFile, err := LoadEmbeddedHelmIndexFile()
 	if err != nil {
 		return nil, err

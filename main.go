@@ -33,12 +33,22 @@ func main() {
 	command := newCommand()
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
 
-	// Init local embedded helm charts - load the index
-	_, err := helmutils.LoadEmbeddedHelmIndexFile()
+	embeddedHelmChartsDir := os.Getenv("EMBEDDED_CHARTS_DIR")
+	// Load local embedded helm charts - will be read in as a charts object
+	err := helmutils.InitEmbeddedCharts(embeddedHelmChartsDir)
 	if err != nil {
-		fmt.Printf("error loading embedded chart index: %s", err)
+		fmt.Printf("error loading embedded chart: %s", err)
 		os.Exit(1)
 	}
+
+	/*
+		// Init local embedded helm charts - load the index
+		_, err := helmutils.LoadEmbeddedHelmIndexFile()
+		if err != nil {
+			fmt.Printf("error loading embedded chart index: %s", err)
+			os.Exit(1)
+		}
+	*/
 
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

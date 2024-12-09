@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"helm.sh/helm/v3/pkg/chart"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
@@ -16,8 +15,7 @@ type manifestHelperHelmDeploy struct {
 }
 
 const (
-	AnnotationHelmRepoURLOverride = "helm-repo-url"
-	//AnnotationHelmRepoNameOverride = "helm-repo-name"
+	AnnotationHelmUseDevCharts = "helm-chart-dev"
 )
 
 var _ manifestHelper = &manifestHelperHelmDeploy{}
@@ -28,12 +26,18 @@ func (mh *manifestHelperHelmDeploy) loadManifests() ([]runtime.Object, error) {
 		return nil, err
 	}
 
-	// Load our namespace as 1st object
-	objects, err := mh.loadManifestsFromFiles(manifestFilesHelmDeployNamespace, values)
+	// Raw yaml files to be included in our manifestwork (these will be rendered into objects)
+	// These include any objects we need on the mgd cluster that are not in the helm charts themselves
+	fileList := manifestFilesHelmDeploy
+	if mh.clusterIsOpenShift {
+		fileList = manifestFilesHelmDeployOpenShift
+	}
+	objects, err := mh.loadManifestsFromFiles(fileList, values)
 	if err != nil {
 		return nil, err
 	}
 
+	// Now load manifest objects rendered from our volsync helm chart
 	helmObjects, err := mh.loadManifestsFromHelmRepo(values)
 	if err != nil {
 		return nil, err
@@ -45,38 +49,37 @@ func (mh *manifestHelperHelmDeploy) loadManifests() ([]runtime.Object, error) {
 
 // Now need to load and render the helm charts into objects
 func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactory.Values) ([]runtime.Object, error) {
-	chartName := mh.getHelmChartName()
-	namespace := mh.getInstallNamespace()
-	desiredVolSyncVersion := mh.getHelmPackageVersion() //TODO: is this hardcoded for embedded version?
+	installNamespace := mh.getInstallNamespace()
 
-	var chart *chart.Chart
-	var err error
-
-	helmRepoURL, isRemote := mh.isRemoteHelmRepo()
-	if isRemote {
-		// Load the chart from the remote repo (may already be cached locally by helmutils)
-		chart, err = helmutils.EnsureLocalChart(helmRepoURL, chartName, desiredVolSyncVersion, false)
-	} else {
-		// Load the chart from an embedded tgz file on our local filesystem (the default)
-		chart, err = helmutils.EnsureEmbeddedChart(chartName, desiredVolSyncVersion)
-	}
-
+	chart, err := helmutils.GetEmbeddedChart(mh.getChartKey())
 	if err != nil {
-		klog.ErrorS(err, "unable to load or render chart")
+		klog.ErrorS(err, "unable to load chart")
 		return nil, err
 	}
 
-	return helmutils.RenderManifestsFromChart(chart, namespace, mh.cluster, values, genericCodec)
+	return helmutils.RenderManifestsFromChart(chart, installNamespace,
+		mh.cluster, mh.clusterIsOpenShift, values, genericCodec)
 }
 
 func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values, error) {
 	manifestConfig := struct {
-		OperatorInstallNamespace string
+		// OpenShift target cluster parameters - this is the same as the subscription name
+		// only used for cleaning up old OLM based install of VolSync (olm sub/csv will be removed
+		// and we will then deploy the helm chart instead on OpenShift mgd clusters)
+		OperatorName       string
+		ManagedClusterName string
 
-		// Helm based install parameters for non-OpenShift target clusters
+		//
+		// Helm based install parameters here
+		//
+		InstallNamespace string
 		// TODO: other parameters such as nodeSelectors, image overrides etc.
 	}{
-		OperatorInstallNamespace: mh.getInstallNamespace(),
+		OperatorName:       operatorName,
+		ManagedClusterName: mh.cluster.GetName(),
+		InstallNamespace:   mh.getInstallNamespace(),
+
+		//TODO: nodeSelectors, etc
 	}
 
 	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
@@ -96,27 +99,19 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	return mergedValues, nil
 }
 
-// returns returns the desired repoURL and true if remote helm repo should be used
-// if false assume we should use embedded helm charts
-func (mh *manifestHelperHelmDeploy) isRemoteHelmRepo() (string, bool) {
-	repoUrl, ok := mh.addon.GetAnnotations()[AnnotationHelmRepoURLOverride]
-	return repoUrl, ok
-}
-
 func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
-	return DefaultHelmInstallNamespace //TODO: allow overriding via annotation
+	return DefaultHelmInstallNamespace //TODO: allow overriding?
 }
 
-//func (mh *manifestHelperHelmDeploy) getHelmSource() string {
-//	//TODO: allow overriding with annotations?
-//	return DefaultHelmSource
-//}
+func (mh *manifestHelperHelmDeploy) getChartKey() string {
+	// Which chart to deploy - will default to "stable"
+	// but can override with "dev" for pre-release builds to allow for specifying the latest dev version to deploy
+	chartKey := "stable"
 
-func (mh *manifestHelperHelmDeploy) getHelmChartName() string {
-	return DefaultHelmChartName
-}
+	useDev := mh.addon.GetAnnotations()[AnnotationHelmUseDevCharts]
+	if useDev == "true" || useDev == "yes" {
+		chartKey = "dev"
+	}
 
-func (mh *manifestHelperHelmDeploy) getHelmPackageVersion() string {
-	//TODO: allow overriding with annotations?
-	return DefaultHelmPackageVersion
+	return chartKey
 }

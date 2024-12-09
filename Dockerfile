@@ -30,7 +30,10 @@ RUN microdnf -y --refresh update && \
 
 WORKDIR /
 COPY --from=builder /workspace/controller .
+COPY helmcharts/ helmcharts/
 # uid/gid: nobody/nobody
 USER 65534:65534
+
+ENV EMBEDDED_CHARTS_DIR=/helmcharts
 
 ENTRYPOINT ["/controller"]

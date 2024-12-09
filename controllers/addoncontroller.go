@@ -21,8 +21,10 @@ import (
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workapiv1 "open-cluster-management.io/api/work/v1"
-	helmreleasev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/helmrelease/v1"
-	appsubscriptionv1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/v1"
+
+	//helmreleasev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/helmrelease/v1"
+	//appsubscriptionv1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/v1"
+	policyv1beta1 "open-cluster-management.io/config-policy-controller/api/v1beta1"
 )
 
 //
@@ -75,17 +77,19 @@ const (
 )
 
 const (
-	AnnotationVolSyncAddonDeployTypeOverride          = "volsync-addon-deploy-type"
-	AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
+	AnnotationVolSyncAddonDeployTypeOverride = "volsync-addon-deploy-type"
+	//AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
+	AnnotationVolSyncAddonDeployTypeOverrideOLMValue = "olm"
 )
 
 func init() {
 	utilruntime.Must(scheme.AddToScheme(genericScheme))
 	utilruntime.Must(operatorsv1.AddToScheme(genericScheme))
 	utilruntime.Must(operatorsv1alpha1.AddToScheme(genericScheme))
-	utilruntime.Must(appsubscriptionv1.SchemeBuilder.AddToScheme(genericScheme)) //TODO: remove if we don't use it
-	utilruntime.Must(helmreleasev1.SchemeBuilder.AddToScheme(genericScheme))     //TODO: remove if we don't use it
+	//utilruntime.Must(appsubscriptionv1.SchemeBuilder.AddToScheme(genericScheme)) //TODO: remove if we don't use it
+	//utilruntime.Must(helmreleasev1.SchemeBuilder.AddToScheme(genericScheme))     //TODO: remove if we don't use it
 	utilruntime.Must(apiextensionsv1.AddToScheme(genericScheme))
+	utilruntime.Must(policyv1beta1.AddToScheme(genericScheme))
 }
 
 //go:embed manifests
@@ -97,7 +101,14 @@ var manifestFilesOperatorDeploy = []string{
 	"manifests/operator/operator-subscription.yaml",
 }
 
-var manifestFilesHelmDeployNamespace = []string{
+var manifestFilesHelmDeploy = []string{
+	"manifests/helm-chart/namespace.yaml",
+}
+
+var manifestFilesHelmDeployOpenShift = []string{
+	// Policy to remove the operator since we're going to deploy as a helm chart instead
+	"manifests/helm-chart/volsync-operatorpolicy-aggregate-clusterrole.yaml",
+	"manifests/helm-chart/volsync-operatorpolicy-remove-operator.yaml",
 	"manifests/helm-chart/namespace.yaml",
 }
 

@@ -1,10 +1,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: open-cluster-management:{{ .OperatorName }}-addon-operatorgroups-aggregate-clusterrole
+  name: open-cluster-management:volsync-operatorpolicy-aggregate-clusterrole
   labels:
     rbac.authorization.k8s.io/aggregate-to-admin: "true"
 rules:
-  - apiGroups: ["operators.coreos.com"]
-    resources: ["operatorgroups"]
+  - apiGroups: ["policy.open-cluster-management.io"]
+    resources: ["operatorpolicies"]
     verbs: ["get", "create", "delete", "update"]

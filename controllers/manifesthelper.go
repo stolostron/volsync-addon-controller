@@ -28,24 +28,27 @@ func getManifestHelper(embedFS embed.FS, addonClient addonv1alpha1client.Interfa
 	clusterIsOpenShift := isOpenShift(cluster)
 
 	mhc := manifestHelperCommon{
-		embedFS:     embedFS,
-		addonClient: addonClient,
-		cluster:     cluster,
-		addon:       addon,
+		embedFS:            embedFS,
+		addonClient:        addonClient,
+		cluster:            cluster,
+		clusterIsOpenShift: clusterIsOpenShift,
+		addon:              addon,
 	}
 
 	if shouldDeployVolSyncAsOperator(clusterIsOpenShift, addon) {
 		return &manifestHelperOperatorDeploy{mhc}
 	}
 
+	// Default is now to deploy as a helm operator
 	return &manifestHelperHelmDeploy{mhc}
 }
 
 type manifestHelperCommon struct {
-	embedFS     embed.FS
-	addonClient addonv1alpha1client.Interface
-	cluster     *clusterv1.ManagedCluster
-	addon       *addonapiv1alpha1.ManagedClusterAddOn
+	embedFS            embed.FS
+	addonClient        addonv1alpha1client.Interface
+	cluster            *clusterv1.ManagedCluster
+	clusterIsOpenShift bool
+	addon              *addonapiv1alpha1.ManagedClusterAddOn
 }
 
 func (mhc manifestHelperCommon) loadManifestsFromFiles(fileList []string, values addonfactory.Values,
@@ -73,17 +76,12 @@ func (mhc manifestHelperCommon) loadManifestsFromFiles(fileList []string, values
 }
 
 func shouldDeployVolSyncAsOperator(clusterIsOpenShift bool, addon *addonapiv1alpha1.ManagedClusterAddOn) bool {
-	if !clusterIsOpenShift {
-		// Don't do operator deploy for non-openshift
-		return false
+	if clusterIsOpenShift && addon.GetAnnotations()[AnnotationVolSyncAddonDeployTypeOverride] ==
+		AnnotationVolSyncAddonDeployTypeOverrideOLMValue {
+		klog.InfoS("Override - deploying VolSync as OLM operator for cluster",
+			"clusterName", addon.GetNamespace())
+		return true
 	}
 
-	// cluster is OpenShift, check whether addon annotation specifies we should deploy as helm as an override
-	if addon.GetAnnotations()[AnnotationVolSyncAddonDeployTypeOverride] ==
-		AnnotationVolSyncAddonDeployTypeOverrideHelmValue {
-		klog.InfoS("Override - deploying VolSync as helm chart for cluster", "clusterName", addon.GetNamespace()) //TODO: rem
-		return false
-	}
-
-	return true // Should deploy VolSync as OLM operator
+	return false // Default, should deploy VolSync via helm charts
 }

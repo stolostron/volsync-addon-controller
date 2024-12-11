@@ -1,54 +1,121 @@
 package helmutils_test
 
 import (
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	clusterv1 "open-cluster-management.io/api/cluster/v1"
+
+	"github.com/stolostron/volsync-addon-controller/controllers"
+	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
+	"github.com/stolostron/volsync-addon-controller/controllers/helmutils/helmutilstest"
 )
 
 var _ = Describe("Helmutils", func() {
-	It("Should do something", func() {
-		Expect("A").To(Equal("B"))
+	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
+
+	Context("Load embedded helm charts", func() {
+		// see the test suite BeforeSuite() for initing the charts with our test charts
+		It("Should have stable-X.Y chart loaded", func() {
+			// Stable chart should always exist
+			chart, err := helmutils.GetEmbeddedChart(controllers.DefaultHelmChartKey)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(chart).NotTo(BeNil())
+
+			// Charts for acm 2.13 should be volsync v0.12.z
+			Expect(strings.HasPrefix(chart.AppVersion(), "0.12.")).To(BeTrue())
+		})
+
+		It("Should not have other charts loaded", func() {
+			_, err := helmutils.GetEmbeddedChart("nothere")
+			Expect(err).To(HaveOccurred())
+		})
 	})
-	/*
-		  var volsyncRepoURL = "https://tesshuflower.github.io/helm-charts/"
-			Context("Using defaults - and loading embedded charts", func() {
-				It("Should be able to load embedded charts with EnsureEmbedded()", func() {
-					Expect(helmutils.EnsureLocalRepo(volsyncRepoURL, true)).To(Succeed())
 
-					chart, err := helmutils.EnsureEmbeddedChart(helmutils.VolsyncChartName, "0.10")
-					Expect(err).NotTo(HaveOccurred())
-					Expect(chart).NotTo(BeNil())
-					Expect(chart.AppVersion()).To(Equal("0.10.0"))
+	Context("Rendering helm charts into objects", func() {
+		var testNamespace string
+		var clusterIsOpenShift bool
+		var renderedObjs []runtime.Object
+		//var chartKey string
 
-					chart, err = helmutils.EnsureEmbeddedChart(helmutils.VolsyncChartName, "^0.10")
-					Expect(err).NotTo(HaveOccurred())
-					Expect(chart).NotTo(BeNil())
-					Expect(chart.AppVersion()).To(Equal("0.10.0"))
+		var chartValues map[string]interface{}
 
-					chart, err = helmutils.EnsureEmbeddedChart(helmutils.VolsyncChartName, ">0.11.0-0")
-					Expect(err).NotTo(HaveOccurred())
-					Expect(chart).NotTo(BeNil())
-					Expect(chart.AppVersion()).To(Equal("0.11.0-rc.1"))
-				})
+		BeforeEach(func() {
+			chartValues = map[string]interface{}{}
+		})
+
+		JustBeforeEach(func() {
+			chart, err := helmutils.GetEmbeddedChart(controllers.DefaultHelmChartKey)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(chart).NotTo(BeNil())
+
+			testCluster := &clusterv1.ManagedCluster{
+				ObjectMeta: metav1.ObjectMeta{},
+			}
+
+			renderedObjs, err = helmutils.RenderManifestsFromChart(chart, testNamespace, testCluster, clusterIsOpenShift,
+				chartValues, genericCodec)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(renderedObjs).NotTo(BeNil())
+		})
+
+		When("The cluster is OpenShift", func() {
+			BeforeEach(func() {
+				clusterIsOpenShift = true
+				testNamespace = "my-test-ns"
 			})
-	*/
 
-	/*
-		When("Using a remote repo for charts", func() {
-			//TODO: perhaps override the cache dir the charts get downloaded to
-			// Also - needs cleanup afterwards
-			//      - should confirm the files are there in the cache
-			It("Should be able to call EnsureLocalChart to load the remote chart (and cache it)", func() {
-				version := "0.11.0-rc.1"
-				chart, err := helmutils.EnsureLocalChart(volsyncRepoURL, helmutils.VolsyncChartName, version, false)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(chart).NotTo(BeNil())
-
-				// Call again, should use cached chart
-				chart2, err := helmutils.EnsureLocalChart(volsyncRepoURL, helmutils.VolsyncChartName, version, false)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(chart2).NotTo(BeNil())
+			It("Should render the helm chart", func() {
+				helmutilstest.VerifyHelmRenderedVolSyncObjects(renderedObjs, testNamespace, clusterIsOpenShift)
 			})
 		})
-	*/
+
+		When("The cluster is Not OpenShift", func() {
+			BeforeEach(func() {
+				clusterIsOpenShift = false
+				testNamespace = "my-test-ns-2"
+			})
+
+			It("Should render the helm chart", func() {
+				helmutilstest.VerifyHelmRenderedVolSyncObjects(renderedObjs, testNamespace, clusterIsOpenShift)
+			})
+
+			When("custom chart values are provided", func() {
+				myNodeSelector := map[string]string{
+					"selecta": "selectorvaluea",
+					"selectb": "selectorvalueb",
+				}
+
+				myTolerations := []corev1.Toleration{
+					{
+						Key:      "node.kubernetes.io/unreachable",
+						Operator: corev1.TolerationOpExists,
+						Effect:   corev1.TaintEffectNoSchedule,
+					},
+				}
+
+				BeforeEach(func() {
+					// Set some chart values
+					chartValues["nodeSelector"] = myNodeSelector
+					chartValues["tolerations"] = myTolerations
+				})
+
+				It("Should render the helm chart using the values", func() {
+					volsyncDeploy := helmutilstest.VerifyHelmRenderedVolSyncObjects(renderedObjs, testNamespace, clusterIsOpenShift)
+					logger.Info("deployment", "volsyncDeploy", &volsyncDeploy)
+					Expect(volsyncDeploy.Spec.Template.Spec.NodeSelector).NotTo(BeNil())
+					Expect(volsyncDeploy.Spec.Template.Spec.NodeSelector).To(Equal(myNodeSelector))
+
+					Expect(volsyncDeploy.Spec.Template.Spec.Tolerations).NotTo(BeNil())
+					Expect(volsyncDeploy.Spec.Template.Spec.Tolerations).To(Equal(myTolerations))
+				})
+			})
+		})
+	})
 })

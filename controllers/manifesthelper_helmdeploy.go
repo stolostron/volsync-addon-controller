@@ -14,10 +14,6 @@ type manifestHelperHelmDeploy struct {
 	manifestHelperCommon
 }
 
-const (
-	AnnotationHelmUseDevCharts = "helm-chart-dev"
-)
-
 var _ manifestHelper = &manifestHelperHelmDeploy{}
 
 func (mh *manifestHelperHelmDeploy) loadManifests() ([]runtime.Object, error) {
@@ -73,13 +69,10 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 		// Helm based install parameters here
 		//
 		InstallNamespace string
-		// TODO: other parameters such as nodeSelectors, image overrides etc.
 	}{
 		OperatorName:       operatorName,
 		ManagedClusterName: mh.cluster.GetName(),
 		InstallNamespace:   mh.getInstallNamespace(),
-
-		//TODO: nodeSelectors, etc
 	}
 
 	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
@@ -96,6 +89,9 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	// Merge manifestConfig and deploymentConfigValues
 	mergedValues := addonfactory.MergeValues(manifestConfigValues, deploymentConfigValues)
 
+	// Convert any values into the value format that VolSync expects in its charts
+	mh.updateChartValuesForVolSync(mergedValues)
+
 	return mergedValues, nil
 }
 
@@ -105,13 +101,32 @@ func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
 
 func (mh *manifestHelperHelmDeploy) getChartKey() string {
 	// Which chart to deploy - will default to "stable"
-	// but can override with "dev" for pre-release builds to allow for specifying the latest dev version to deploy
-	chartKey := "stable"
+	// but can override with annotation to pick from a different dir
+	// (that dir will need to be bundled in /helmcharts/<dir> however)
+	chartKey := DefaultHelmChartKey
 
-	useDev := mh.addon.GetAnnotations()[AnnotationHelmUseDevCharts]
-	if useDev == "true" || useDev == "yes" {
-		chartKey = "dev"
+	customChartKey := mh.addon.GetAnnotations()[AnnotationHelmChartKey]
+	if customChartKey != "" {
+		chartKey = customChartKey
 	}
 
 	return chartKey
+}
+
+// Updates values to make sure they match the correct names volsync expects in values.yaml
+// (for example addon-framework uses "Tolerations" and "NodeSelectors" where Volsync values.yaml
+//
+//	expects "tolerations" and "nodeSelectors")
+func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfactory.Values) {
+	convertValuesMapKey(values, "Tolerations", "tolerations")
+	convertValuesMapKey(values, "NodeSelector", "nodeSelector")
+}
+
+// If oldKey exists in map, copy the value to newKey and remove oldKey
+func convertValuesMapKey(values addonfactory.Values, oldKey, newKey string) {
+	v, ok := values[oldKey]
+	if ok {
+		values[newKey] = v
+		delete(values, oldKey)
+	}
 }

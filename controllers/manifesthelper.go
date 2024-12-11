@@ -1,7 +1,5 @@
 package controllers
 
-//TODO: maybe move to different package
-
 // Helper to get the objects that need to be inserted into the manifestwork
 // and render them
 
@@ -68,7 +66,6 @@ func (mhc manifestHelperCommon) loadManifestsFromFiles(fileList []string, values
 			return nil, err
 		}
 
-		klog.InfoS("Object for manifest: ", "object", object) //TODO: remove
 		objects[i] = object
 	}
 

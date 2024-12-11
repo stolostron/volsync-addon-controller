@@ -7,6 +7,7 @@ import (
 
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,18 +46,17 @@ const (
 	operatorName                   = "volsync-product"
 	globalOperatorInstallNamespace = "openshift-operators"
 
-	// Defaults for ACM-2.12 Operator deploy
+	// Defaults for ACM-2.13 Operator deploy
 	DefaultCatalogSource          = "redhat-operators"
 	DefaultCatalogSourceNamespace = "openshift-marketplace"
-	DefaultChannel                = "stable-0.11" // No "acm-x.y" channel anymore - aligning ACM-2.12 with stable-0.11
+	DefaultChannel                = "stable-0.12" // aligning ACM-2.13 with stable-0.12
 	DefaultStartingCSV            = ""            // By default no starting CSV - will use the latest in the channel
 	DefaultInstallPlanApproval    = "Automatic"
 
 	// Defaults for ACM-2.13 helm-based deploy
-	//DefaultHelmSource           = "https://backube.github.io/helm-charts"
+	DefaultHelmChartKey         = DefaultChannel // named the same as our operator channel
 	DefaultHelmChartName        = "volsync"
 	DefaultHelmInstallNamespace = "volsync-system"
-	DefaultHelmPackageVersion   = "^0.10" //FIXME: update
 )
 
 const (
@@ -80,6 +80,8 @@ const (
 	AnnotationVolSyncAddonDeployTypeOverride = "volsync-addon-deploy-type"
 	//AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
 	AnnotationVolSyncAddonDeployTypeOverrideOLMValue = "olm"
+
+	AnnotationHelmChartKey = "helm-chart-key" //TODO: come up with a better name?
 )
 
 func init() {
@@ -136,11 +138,10 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 				ProbeFields: []agent.ProbeField{
 					{
 						ResourceIdentifier: workapiv1.ResourceIdentifier{
-							Group:    "operators.coreos.com",
-							Resource: "subscriptions",
-							Name:     operatorName,
-							//Namespace: getInstallNamespace(),
-							Namespace: "openshift-operators", //FIXME: may be able to use '*' after addon-framework updates
+							Group:     "operators.coreos.com",
+							Resource:  "subscriptions",
+							Name:      operatorName,
+							Namespace: "openshift-operators",
 						},
 						ProbeRules: []workapiv1.FeedbackRule{
 							{
@@ -154,22 +155,20 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 							},
 						},
 					},
-					/* TODO: pub back after addon-framework supports ORing probe rules
-					                   and allows setting '*' for namespace
-											{
-												ResourceIdentifier: workapiv1.ResourceIdentifier{
-													Group:     appsv1.GroupName,
-													Resource:  "deployments",
-													Name:      "volsync",
-													Namespace: "volsync-system",
-												},
-												ProbeRules: []workapiv1.FeedbackRule{
-													{
-														Type: workapiv1.WellKnownStatusType,
-													},
-												},
-											},
-					*/
+					{
+						ResourceIdentifier: workapiv1.ResourceIdentifier{
+							Group:     appsv1.GroupName,
+							Resource:  "deployments",
+							Name:      "volsync",
+							Namespace: "*",
+							//Namespace: "volsync-system",
+						},
+						ProbeRules: []workapiv1.FeedbackRule{
+							{
+								Type: workapiv1.WellKnownStatusType,
+							},
+						},
+					},
 				},
 				HealthCheck: subHealthCheck,
 			},
@@ -193,6 +192,47 @@ func subHealthCheck(identifier workapiv1.ResourceIdentifier, result workapiv1.St
 				return installedCSVErr
 			}
 		}
+		//TODO: deployment check (for helm chart deploy)
+		// TODO: if feedbackValue is the helm chart deploy
+
+		/*
+			// only support deployments and daemonsets for now
+			if identifier.Resource != "deployments" {
+				return fmt.Errorf("unsupported resource type %s", identifier.Resource)
+			}
+			if identifier.Group != appsv1.GroupName {
+				return fmt.Errorf("unsupported resource group %s", identifier.Group)
+			}
+			if len(result.Values) == 0 {
+				return fmt.Errorf("no values are probed for %s %s/%s",
+					identifier.Resource, identifier.Namespace, identifier.Name)
+			}
+
+			readyReplicas := -1
+			desiredNumberReplicas := -1
+			for _, value := range result.Values {
+				if value.Name == "ReadyReplicas" {
+					readyReplicas = int(*value.Value.Integer)
+				}
+				if value.Name == "Replicas" {
+					desiredNumberReplicas = int(*value.Value.Integer)
+				}
+			}
+
+			if readyReplicas == -1 {
+				return fmt.Errorf("readyReplica is not probed")
+			}
+			if desiredNumberReplicas == -1 {
+				return fmt.Errorf("desiredNumberReplicas is not probed")
+			}
+
+			if desiredNumberReplicas == 0 || readyReplicas >= 1 {
+				return nil
+			}
+
+			return fmt.Errorf("desiredNumberReplicas is %d but readyReplica is %d for %s %s/%s",
+				desiredNumberReplicas, readyReplicas, identifier.Resource, identifier.Namespace, identifier.Name)
+		*/
 	}
 	klog.InfoS("health check successful")
 	return nil
@@ -214,14 +254,6 @@ func isOpenShift(cluster *clusterv1.ManagedCluster) bool {
 	if !ok || !strings.EqualFold(vendor, "OpenShift") {
 		return false
 	}
-
-	//FIXME: this is just for test purposes
-	_, notOS := cluster.Labels["notopenshift"]
-	if notOS {
-		klog.InfoS("Cluster has our fake notopenshift label", "cluster name", cluster.GetName())
-		return false
-	}
-	//end FIXME: this is just for test purposes
 
 	return true
 }

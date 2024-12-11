@@ -30,6 +30,7 @@ RUN microdnf -y --refresh update && \
 
 WORKDIR /
 COPY --from=builder /workspace/controller .
+# VolSync helm charts
 COPY helmcharts/ helmcharts/
 # uid/gid: nobody/nobody
 USER 65534:65534

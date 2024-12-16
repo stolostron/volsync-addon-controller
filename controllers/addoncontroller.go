@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"embed"
-	"fmt"
 	"strings"
 
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
@@ -14,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog/v2"
 
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
@@ -170,7 +168,7 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 						},
 					},
 				},
-				HealthCheck: subHealthCheck,
+				HealthChecker: subHealthChecker,
 			},
 		},
 		SupportedConfigGVRs: []schema.GroupVersionResource{
@@ -179,63 +177,11 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	}
 }
 
-func subHealthCheck(identifier workapiv1.ResourceIdentifier, result workapiv1.StatusFeedbackResult) error {
-	klog.InfoS("## Sub health check ##", "identifier", identifier, "result", result) //TODO: remove
-	for _, feedbackValue := range result.Values {
-		if feedbackValue.Name == "installedCSV" {
-			klog.InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
-			if feedbackValue.Value.Type != workapiv1.String || feedbackValue.Value.String == nil ||
-				!strings.HasPrefix(*feedbackValue.Value.String, operatorName) {
-
-				installedCSVErr := fmt.Errorf("addon subscription has unexpected installedCSV value")
-				klog.ErrorS(installedCSVErr, "Sub may not have installed CSV")
-				return installedCSVErr
-			}
-		}
-		//TODO: deployment check (for helm chart deploy)
-		// TODO: if feedbackValue is the helm chart deploy
-
-		/*
-			// only support deployments and daemonsets for now
-			if identifier.Resource != "deployments" {
-				return fmt.Errorf("unsupported resource type %s", identifier.Resource)
-			}
-			if identifier.Group != appsv1.GroupName {
-				return fmt.Errorf("unsupported resource group %s", identifier.Group)
-			}
-			if len(result.Values) == 0 {
-				return fmt.Errorf("no values are probed for %s %s/%s",
-					identifier.Resource, identifier.Namespace, identifier.Name)
-			}
-
-			readyReplicas := -1
-			desiredNumberReplicas := -1
-			for _, value := range result.Values {
-				if value.Name == "ReadyReplicas" {
-					readyReplicas = int(*value.Value.Integer)
-				}
-				if value.Name == "Replicas" {
-					desiredNumberReplicas = int(*value.Value.Integer)
-				}
-			}
-
-			if readyReplicas == -1 {
-				return fmt.Errorf("readyReplica is not probed")
-			}
-			if desiredNumberReplicas == -1 {
-				return fmt.Errorf("desiredNumberReplicas is not probed")
-			}
-
-			if desiredNumberReplicas == 0 || readyReplicas >= 1 {
-				return nil
-			}
-
-			return fmt.Errorf("desiredNumberReplicas is %d but readyReplica is %d for %s %s/%s",
-				desiredNumberReplicas, readyReplicas, identifier.Resource, identifier.Namespace, identifier.Name)
-		*/
-	}
-	klog.InfoS("health check successful")
-	return nil
+func subHealthChecker(fieldResults []agent.FieldResult,
+	cluster *clusterv1.ManagedCluster, managedClusterAddOn *addonapiv1alpha1.ManagedClusterAddOn) error {
+	// ManifestHelper will run the health check
+	mh := getManifestHelper(embedFS, nil /* not needed for heatlh check */, cluster, managedClusterAddOn)
+	return mh.subHealthCheck(fieldResults)
 }
 
 func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,

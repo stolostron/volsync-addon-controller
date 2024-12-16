@@ -1,10 +1,16 @@
 package controllers
 
 import (
+	"fmt"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
+	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
+	workapiv1 "open-cluster-management.io/api/work/v1"
 )
 
 type manifestHelperOperatorDeploy struct {
@@ -20,6 +26,33 @@ func (mh *manifestHelperOperatorDeploy) loadManifests() ([]runtime.Object, error
 	}
 
 	return mh.loadManifestsFromFiles(manifestFilesOperatorDeploy, values)
+}
+
+func (mh *manifestHelperOperatorDeploy) subHealthCheck(fieldResults []agent.FieldResult) error {
+	foundOLMSubscription := false
+	for _, fieldResult := range fieldResults {
+		if fieldResult.ResourceIdentifier.Resource == "subscriptions" {
+			foundOLMSubscription = true
+			for _, feedbackValue := range fieldResult.FeedbackResult.Values {
+				if feedbackValue.Name == "installedCSV" {
+					klog.InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
+					if feedbackValue.Value.Type != workapiv1.String || feedbackValue.Value.String == nil ||
+						!strings.HasPrefix(*feedbackValue.Value.String, operatorName) {
+
+						installedCSVErr := fmt.Errorf("addon subscription has unexpected installedCSV value")
+						klog.ErrorS(installedCSVErr, "Sub may not have installed CSV")
+						return installedCSVErr
+					}
+				}
+			}
+		}
+	}
+	if !foundOLMSubscription {
+		noSubErr := fmt.Errorf("addon subscription not found in feedback results")
+		klog.ErrorS(noSubErr, "Sub may not have been deployed")
+		return noSubErr
+	}
+	return nil
 }
 
 func (mh *manifestHelperOperatorDeploy) getValuesForManifest() (addonfactory.Values, error) {

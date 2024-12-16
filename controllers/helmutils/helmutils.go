@@ -22,8 +22,6 @@ import (
 )
 
 const (
-	VolsyncChartName = "volsync"
-
 	defaultEmbeddedChartsDir = "/helmcharts"
 	crdKind                  = "CustomResourceDefinition"
 )
@@ -160,7 +158,7 @@ func RenderManifestsFromChart(
 
 		templateData := templates[fileName]
 		if (fileExt != ".yaml" && fileExt != ".yml") || len(templateData) == 0 || templateData == "\n" {
-			klog.InfoS("Skipping template", "fileName", fileName)
+			klog.V(4).InfoS("Skipping template", "fileName", fileName)
 			continue
 		}
 

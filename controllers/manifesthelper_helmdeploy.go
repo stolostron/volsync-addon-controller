@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
+	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
@@ -41,6 +44,52 @@ func (mh *manifestHelperHelmDeploy) loadManifests() ([]runtime.Object, error) {
 
 	objects = append(objects, helmObjects...)
 	return objects, nil
+}
+
+func (mh *manifestHelperHelmDeploy) subHealthCheck(fieldResults []agent.FieldResult) error {
+	if len(fieldResults) == 0 {
+		return fmt.Errorf("no fieldResults found in health checker")
+	}
+	for _, fieldResult := range fieldResults {
+		if len(fieldResult.FeedbackResult.Values) == 0 {
+			continue
+		}
+		switch fieldResult.ResourceIdentifier.Resource {
+		case "deployments":
+			readyReplicas := -1
+			desiredNumberReplicas := -1
+			for _, value := range fieldResult.FeedbackResult.Values {
+				if value.Name == "ReadyReplicas" {
+					readyReplicas = int(*value.Value.Integer)
+				}
+				if value.Name == "Replicas" {
+					desiredNumberReplicas = int(*value.Value.Integer)
+				}
+			}
+
+			if readyReplicas == -1 {
+				return fmt.Errorf("readyReplicas is not probed")
+			}
+			if desiredNumberReplicas == -1 {
+				return fmt.Errorf("desiredNumberReplicas is not probed")
+			}
+
+			if desiredNumberReplicas == 0 {
+				return nil
+			}
+
+			if desiredNumberReplicas == readyReplicas {
+				return nil
+			}
+
+			return fmt.Errorf("desiredNumberReplicas is %d but readyReplica is %d for %s %s/%s",
+				desiredNumberReplicas, readyReplicas,
+				fieldResult.ResourceIdentifier.Resource,
+				fieldResult.ResourceIdentifier.Namespace,
+				fieldResult.ResourceIdentifier.Name)
+		}
+	}
+	return fmt.Errorf("volsync addon is not ready")
 }
 
 // Now need to load and render the helm charts into objects

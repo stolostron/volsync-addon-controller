@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
+	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
@@ -18,6 +19,7 @@ import (
 
 type manifestHelper interface {
 	loadManifests() ([]runtime.Object, error)
+	subHealthCheck(fieldResults []agent.FieldResult) error
 }
 
 func getManifestHelper(embedFS embed.FS, addonClient addonv1alpha1client.Interface,

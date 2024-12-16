@@ -480,7 +480,6 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 				Context("When no addonDeploymentConfig is referenced", func() {
 					It("Should create deployment in the manifestwork with no tolerations or selectors", func() {
-						logger.Info("# VolSync Deployment", "template.spec", volsyncDeployment.Spec.Template.Spec) //TODO: remove
 						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(BeNil())
 						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 					})
@@ -1334,43 +1333,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 				}, timeout, interval).Should(Succeed())
 			})
 
-			Context("When the managed cluster is not OpenShift", func() {
-				BeforeEach(func() {
-					// Delete label that indicates the mgd cluster is openshift
-					delete(testManagedCluster.Labels, "vendor")
-				})
-
-				It("Should create a manifestwork containing helm charts", func() {
-					// The controller should create a ManifestWork for this ManagedClusterAddon
-					// Fake out that the ManifestWork is applied and available
-					Eventually(func() error {
-						var manifestWork *workv1.ManifestWork
-
-						allMwList := &workv1.ManifestWorkList{}
-						Expect(testK8sClient.List(testCtx, allMwList,
-							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-						for _, mw := range allMwList.Items {
-							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-								manifestWork = &mw
-								break
-							}
-						}
-
-						if manifestWork == nil {
-							return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
-						}
-
-						logger.Info("manifestWork", "manifestWork", manifestWork)
-
-						//TODO: check contents of manifestwork
-
-						return nil
-					}, timeout, interval).Should(Succeed())
-				})
-			})
-
-			Context("When the managed cluster is an OpenShiftCluster and manifestwork is available", func() {
+			Context("When the manifestwork is available", func() {
 				JustBeforeEach(func() {
 					// The controller should create a ManifestWork for this ManagedClusterAddon
 					// Fake out that the ManifestWork is applied and available
@@ -1413,7 +1376,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 				})
 
 				Context("When the manifestwork statusFeedback is not available", func() {
-					It("Should set the ManagedClusterAddon status to unknown", func() {
+					It("Should set the ManagedClusterAddon status to unavailable", func() {
 						var statusCondition *metav1.Condition
 						Eventually(func() bool {
 							err := testK8sClient.Get(testCtx, types.NamespacedName{
@@ -1429,12 +1392,12 @@ var _ = Describe("Addon Status Update Tests", func() {
 							return statusCondition != nil
 						}, timeout, interval).Should(BeTrue())
 
-						Expect(statusCondition.Reason).To(Equal("NoProbeResult"))
-						Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
+						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
 					})
 				})
 
-				Context("When the manifestwork statusFeedback is returned with a bad value", func() {
+				Context("When the manifestwork statusFeedback for the deployment does not have ready replicas", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
 							// Update the manifestwork to set the statusfeedback to a bad value
@@ -1455,14 +1418,16 @@ var _ = Describe("Addon Status Update Tests", func() {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							manifestWork.Status.ResourceStatus = manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
-								"notinstalled")
+							// Set status feedback to indicate desired replicas = 1 but no ready replicas
+							replicas := int64(1)
+							manifestWork.Status.ResourceStatus =
+								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, nil)
 
 							return testK8sClient.Status().Update(testCtx, manifestWork)
 						}, timeout, interval).Should(Succeed())
 					})
 
-					It("Should set the ManagedClusterAddon status to unknown", func() {
+					It("Should set the ManagedClusterAddon status to unavailable", func() {
 						var statusCondition *metav1.Condition
 						Eventually(func() bool {
 							err := testK8sClient.Get(testCtx, types.NamespacedName{
@@ -1475,17 +1440,20 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
 								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+							if statusCondition == nil {
+								return false
+							}
 							return statusCondition.Reason == "ProbeUnavailable"
 						}, timeout, interval).Should(BeTrue())
 
 						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
 						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
 						Expect(statusCondition.Message).To(ContainSubstring("Probe addon unavailable with err"))
-						Expect(statusCondition.Message).To(ContainSubstring("unexpected installedCSV value"))
+						Expect(statusCondition.Message).To(ContainSubstring("readyReplicas is not probed"))
 					})
 				})
 
-				Context("When the manifestwork statusFeedback is returned with a correct installed value", func() {
+				Context("When the manifestwork statusFeedback is returned with incorrect deployment ready replicas", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
 							// Update the manifestwork to set the statusfeedback to a bad value
@@ -1506,8 +1474,70 @@ var _ = Describe("Addon Status Update Tests", func() {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							manifestWork.Status.ResourceStatus = manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
-								"volsync-product.v0.4.0")
+							// Set status feedback to indicate desired replicas = 1 and ready replicas = 0
+							replicas := int64(1)
+							readyReplicas := int64(0)
+							manifestWork.Status.ResourceStatus =
+								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
+
+							return testK8sClient.Status().Update(testCtx, manifestWork)
+						}, timeout, interval).Should(Succeed())
+					})
+
+					It("Should set the ManagedClusterAddon status to unavailable", func() {
+						var statusCondition *metav1.Condition
+						Eventually(func() bool {
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "volsync",
+								Namespace: testManagedClusterNamespace.GetName(),
+							}, mcAddon)
+							if err != nil {
+								return false
+							}
+
+							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
+								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+							if statusCondition == nil {
+								return false
+							}
+							return statusCondition.Reason == "ProbeUnavailable"
+						}, timeout, interval).Should(BeTrue())
+
+						logger.Info("#### status condition", "statusCondition", statusCondition)
+
+						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
+						Expect(statusCondition.Message).To(ContainSubstring("Probe addon unavailable with err"))
+						Expect(statusCondition.Message).To(ContainSubstring("desiredNumberReplicas is 1 but readyReplica is 0"))
+					})
+				})
+
+				Context("When the manifestwork statusFeedback is returned with correct deployment ready replicas", func() {
+					JustBeforeEach(func() {
+						Eventually(func() error {
+							// Update the manifestwork to set the statusfeedback to a bad value
+							var manifestWork *workv1.ManifestWork
+
+							allMwList := &workv1.ManifestWorkList{}
+							Expect(testK8sClient.List(testCtx, allMwList,
+								client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+
+							for _, mw := range allMwList.Items {
+								if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
+									manifestWork = &mw
+									break
+								}
+							}
+
+							if manifestWork == nil {
+								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
+							}
+
+							// Set status feedback to indicate desired replicas = 1 and ready replicas = 1
+							replicas := int64(1)
+							readyReplicas := int64(1)
+							manifestWork.Status.ResourceStatus =
+								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
 
 							return testK8sClient.Status().Update(testCtx, manifestWork)
 						}, timeout, interval).Should(Succeed())
@@ -1526,6 +1556,9 @@ var _ = Describe("Addon Status Update Tests", func() {
 
 							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
 								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
+							if statusCondition == nil {
+								return false
+							}
 							return statusCondition.Reason == "ProbeAvailable"
 						}, timeout, interval).Should(BeTrue())
 
@@ -1537,65 +1570,31 @@ var _ = Describe("Addon Status Update Tests", func() {
 					})
 				})
 			})
-
-			/* TODO: put back after we fix the status - will need to check for successful status
-			               now that we support OpenShift clusters
-						Context("When the managed cluster is not an OpenShift cluster", func() {
-							BeforeEach(func() {
-								// remove labels from the managedcluster resource before it's created
-								// to simulate a "non-OpenShift" cluster
-								testManagedCluster.Labels = map[string]string{}
-							})
-
-							It("ManagedClusterAddOn status should not be successful", func() {
-								var statusCondition *metav1.Condition
-								Eventually(func() *metav1.Condition {
-									err := testK8sClient.Get(testCtx, types.NamespacedName{
-										Name:      "volsync",
-										Namespace: testManagedClusterNamespace.GetName(),
-									}, mcAddon)
-									if err != nil {
-										return nil
-									}
-
-									logger.Info("### status should not be successful", "mcAddon.Status.Conditions", mcAddon.Status.Conditions)
-									statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
-										addonv1alpha1.ManagedClusterAddOnConditionAvailable)
-									return statusCondition
-									// addon-framework sets condition to Unknown
-								}, timeout, interval).Should(Not(BeNil()))
-
-								Expect(statusCondition.Reason).To(Equal("WorkNotFound")) // We didn't deploy any manifests
-								Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
-							})
-						})
-			*/
 		})
 	})
 })
 
-/*
-func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
-	installedCSVValue string,
+func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
+	replicas, readyReplicas *int64,
 ) workv1.ManifestResourceStatus {
-	return workv1.ManifestResourceStatus{
+	mrStatus := workv1.ManifestResourceStatus{
 		Manifests: []workv1.ManifestCondition{
 			{
 				ResourceMeta: workv1.ManifestResourceMeta{
-					Group:     "operators.coreos.com",
-					Kind:      "Subscription",
-					Name:      "volsync-product",
-					Namespace: "openshift-operators",
-					Resource:  "subscriptions",
-					Version:   "v1alpha1",
+					Group:     "apps",
+					Kind:      "Deployment",
+					Name:      "volsync",
+					Namespace: "volsync-system",
+					Resource:  "deployments",
+					Version:   "v1",
 				},
 				StatusFeedbacks: workv1.StatusFeedbackResult{
 					Values: []workv1.FeedbackValue{
 						{
-							Name: "installedCSV",
+							Name: "Replicas",
 							Value: workv1.FieldValue{
-								Type:   "String",
-								String: &installedCSVValue,
+								Type:    "Integer",
+								Integer: replicas,
 							},
 						},
 					},
@@ -1604,8 +1603,21 @@ func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
 			},
 		},
 	}
+
+	if readyReplicas != nil {
+		mrStatus.Manifests[0].StatusFeedbacks.Values = append(mrStatus.Manifests[0].StatusFeedbacks.Values,
+			workv1.FeedbackValue{
+				Name: "ReadyReplicas",
+				Value: workv1.FieldValue{
+					Type:    "Integer",
+					Integer: readyReplicas,
+				},
+			},
+		)
+	}
+
+	return mrStatus
 }
-*/
 
 func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement) *addonv1alpha1.AddOnDeploymentConfig {
 	// Create a ns to host the addondeploymentconfig

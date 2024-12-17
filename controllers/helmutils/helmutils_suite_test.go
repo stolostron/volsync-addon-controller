@@ -16,8 +16,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
-
-	//policyv1beta1 "open-cluster-management.io/config-policy-controller/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
@@ -33,10 +31,7 @@ func init() {
 	utilruntime.Must(scheme.AddToScheme(genericScheme))
 	utilruntime.Must(operatorsv1.AddToScheme(genericScheme))
 	utilruntime.Must(operatorsv1alpha1.AddToScheme(genericScheme))
-	//utilruntime.Must(appsubscriptionv1.SchemeBuilder.AddToScheme(genericScheme)) //TODO: remove if we don't use it
-	//utilruntime.Must(helmreleasev1.SchemeBuilder.AddToScheme(genericScheme))     //TODO: remove if we don't use it
 	utilruntime.Must(apiextensionsv1.AddToScheme(genericScheme))
-	// utilruntime.Must(policyv1beta1.AddToScheme(genericScheme))
 }
 
 func TestUtils(t *testing.T) {

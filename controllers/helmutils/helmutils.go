@@ -131,10 +131,6 @@ func RenderManifestsFromChart(
 		return nil, err
 	}
 
-	//klog.InfoS("### releaseOptions ###", "releaseOptions", releaseOptions)                  //TODO: remove
-	//klog.InfoS("### capabilities ###", "capabilities", capabilities)                        //TODO: remove
-	//klog.InfoS("### Rendered Chart values ###", "renderedChartValues", renderedChartValues) //TODO: remove
-
 	templates, err := helmEngine.Render(chart, renderedChartValues)
 	if err != nil {
 		klog.Error(err, "Unable to render chart", "chart.Name()", chart.Name())

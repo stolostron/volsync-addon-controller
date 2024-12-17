@@ -20,7 +20,4 @@ spec:
   subscription:
     name: {{ .OperatorName }}
     namespace: openshift-operators
-    #startingCSV: rhods-operator.2.8.0
   upgradeApproval: Automatic
-  #versions:
-  #  - rhods-operator.2.8.0

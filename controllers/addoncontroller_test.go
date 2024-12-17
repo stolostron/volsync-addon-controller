@@ -307,7 +307,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 					Context("When the ManagedClusterAddOn spec does not set an installNamespace", func() {
 						It("Should install to default namespace", func() {
-							//TODO: should this get set in the managedclusteraddon.spec.InstallNamespace as well?
+							// should this get set in the managedclusteraddon.spec.InstallNamespace as well?
 							helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
 								expectedNamespace, mgdClusterIsOpenShift)
 						})

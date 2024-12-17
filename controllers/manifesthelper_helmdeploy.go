@@ -145,7 +145,7 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 }
 
 func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
-	return DefaultHelmInstallNamespace //TODO: allow overriding?
+	return DefaultHelmInstallNamespace
 }
 
 func (mh *manifestHelperHelmDeploy) getChartKey() string {

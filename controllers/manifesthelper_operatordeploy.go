@@ -35,7 +35,7 @@ func (mh *manifestHelperOperatorDeploy) subHealthCheck(fieldResults []agent.Fiel
 			foundOLMSubscription = true
 			for _, feedbackValue := range fieldResult.FeedbackResult.Values {
 				if feedbackValue.Name == "installedCSV" {
-					klog.InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
+					klog.V(4).InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
 					if feedbackValue.Value.Type != workapiv1.String || feedbackValue.Value.String == nil ||
 						!strings.HasPrefix(*feedbackValue.Value.String, operatorName) {
 

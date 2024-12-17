@@ -79,15 +79,13 @@ const (
 	//AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
 	AnnotationVolSyncAddonDeployTypeOverrideOLMValue = "olm"
 
-	AnnotationHelmChartKey = "helm-chart-key" //TODO: come up with a better name?
+	AnnotationHelmChartKey = "helm-chart-key"
 )
 
 func init() {
 	utilruntime.Must(scheme.AddToScheme(genericScheme))
 	utilruntime.Must(operatorsv1.AddToScheme(genericScheme))
 	utilruntime.Must(operatorsv1alpha1.AddToScheme(genericScheme))
-	//utilruntime.Must(appsubscriptionv1.SchemeBuilder.AddToScheme(genericScheme)) //TODO: remove if we don't use it
-	//utilruntime.Must(helmreleasev1.SchemeBuilder.AddToScheme(genericScheme))     //TODO: remove if we don't use it
 	utilruntime.Must(apiextensionsv1.AddToScheme(genericScheme))
 	utilruntime.Must(policyv1beta1.AddToScheme(genericScheme))
 }
@@ -130,7 +128,6 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 	return agent.AgentAddonOptions{
 		AddonName: addonName,
 		HealthProber: &agent.HealthProber{
-			//FIXME: how to do this for the helm chart?
 			Type: agent.HealthProberTypeWork,
 			WorkProber: &agent.WorkHealthProber{
 				ProbeFields: []agent.ProbeField{

@@ -41,15 +41,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	/*
-		// Init local embedded helm charts - load the index
-		_, err := helmutils.LoadEmbeddedHelmIndexFile()
-		if err != nil {
-			fmt.Printf("error loading embedded chart index: %s", err)
-			os.Exit(1)
-		}
-	*/
-
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

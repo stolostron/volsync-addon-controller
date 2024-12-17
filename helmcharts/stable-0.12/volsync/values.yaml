@@ -7,32 +7,34 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
   # Directly specifies the SHA hash of the container image to deploy
-  image: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:071966c89e0ca295ed36a20bba6562cc302e6c0c1466441120be1bb6d0e6f4e7" # v0.12.0-3
 rclone:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:071966c89e0ca295ed36a20bba6562cc302e6c0c1466441120be1bb6d0e6f4e7" # v0.12.0-3
 restic:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:071966c89e0ca295ed36a20bba6562cc302e6c0c1466441120be1bb6d0e6f4e7" # v0.12.0-3
 rsync:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:071966c89e0ca295ed36a20bba6562cc302e6c0c1466441120be1bb6d0e6f4e7" # v0.12.0-3
 rsync-tls:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:071966c89e0ca295ed36a20bba6562cc302e6c0c1466441120be1bb6d0e6f4e7" # v0.12.0-3
 syncthing:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:071966c89e0ca295ed36a20bba6562cc302e6c0c1466441120be1bb6d0e6f4e7" # v0.12.0-3
+kube-rbac-proxy:
+  image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.15
 
 manageCRDs: true
 

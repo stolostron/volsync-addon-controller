@@ -121,7 +121,7 @@ func VerifyHelmRenderedVolSyncObjects(objs []runtime.Object,
 	Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(2))
 	Expect(deployment.Spec.Template.Spec.Containers[0].Name).To(Equal("kube-rbac-proxy"))
 	Expect(deployment.Spec.Template.Spec.Containers[1].Name).To(Equal("manager"))
-	//TODO: check images?
+
 	Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(serviceAccount.GetName()))
 	if clusterIsOpenShift {
 		// RunAsUser should not be set for OpenShift, openshift will set this

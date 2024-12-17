@@ -31,18 +31,20 @@ func (mh *manifestHelperOperatorDeploy) loadManifests() ([]runtime.Object, error
 func (mh *manifestHelperOperatorDeploy) subHealthCheck(fieldResults []agent.FieldResult) error {
 	foundOLMSubscription := false
 	for _, fieldResult := range fieldResults {
-		if fieldResult.ResourceIdentifier.Resource == "subscriptions" {
-			foundOLMSubscription = true
-			for _, feedbackValue := range fieldResult.FeedbackResult.Values {
-				if feedbackValue.Name == "installedCSV" {
-					klog.V(4).InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
-					if feedbackValue.Value.Type != workapiv1.String || feedbackValue.Value.String == nil ||
-						!strings.HasPrefix(*feedbackValue.Value.String, operatorName) {
+		if fieldResult.ResourceIdentifier.Resource != "subscriptions" {
+			continue
+		}
 
-						installedCSVErr := fmt.Errorf("addon subscription has unexpected installedCSV value")
-						klog.ErrorS(installedCSVErr, "Sub may not have installed CSV")
-						return installedCSVErr
-					}
+		foundOLMSubscription = true
+		for _, feedbackValue := range fieldResult.FeedbackResult.Values {
+			if feedbackValue.Name == "installedCSV" {
+				klog.V(4).InfoS("Addon subscription", "installedCSV", feedbackValue.Value)
+				if feedbackValue.Value.Type != workapiv1.String || feedbackValue.Value.String == nil ||
+					!strings.HasPrefix(*feedbackValue.Value.String, operatorName) {
+
+					installedCSVErr := fmt.Errorf("addon subscription has unexpected installedCSV value")
+					klog.ErrorS(installedCSVErr, "Sub may not have installed CSV")
+					return installedCSVErr
 				}
 			}
 		}

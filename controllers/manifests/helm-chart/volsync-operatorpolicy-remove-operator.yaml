@@ -1,0 +1,23 @@
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: OperatorPolicy
+metadata:
+  name: migrate-volsync-from-operatordeploy
+  # OperatorPolicy needs to be in namespace named after mgd cluster (on the mgd cluster itself)
+  namespace: {{ .ManagedClusterName }}
+spec:
+  #complianceConfig:
+  #  catalogSourceUnhealthy: Compliant
+  #  deploymentsUnavailable: NonCompliant
+  #  upgradesAvailable: Compliant
+  complianceType: mustnothave
+  remediationAction: enforce
+  removalBehavior:
+    clusterServiceVersions: Delete
+    customResourceDefinitions: Keep
+    operatorGroups: Keep
+    subscriptions: Delete
+  severity: medium
+  subscription:
+    name: {{ .OperatorName }}
+    namespace: openshift-operators
+  upgradeApproval: Automatic

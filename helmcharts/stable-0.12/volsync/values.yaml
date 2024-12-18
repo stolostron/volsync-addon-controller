@@ -1,0 +1,89 @@
+# Default values for volsync.
+replicaCount: 1
+
+image:
+  repository: quay.io/backube/volsync
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  # Directly specifies the SHA hash of the container image to deploy
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+rclone:
+  repository: quay.io/backube/volsync
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+restic:
+  repository: quay.io/backube/volsync
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+rsync:
+  repository: quay.io/backube/volsync
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+rsync-tls:
+  repository: quay.io/backube/volsync
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+syncthing:
+  repository: quay.io/backube/volsync
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+kube-rbac-proxy:
+  image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.15
+
+manageCRDs: true
+
+metrics:
+  # Disable auth checks when scraping metrics (allow anyone to scrape)
+  disableAuth: false
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+service:
+  # Set the ip family policy to configure dual-stack see [Configure dual-stack](https://kubernetes.io/docs/concepts/services-networking/dual-stack/#services)
+  ipFamilyPolicy: ""
+  # Sets the families that should be supported and the order in which they should be applied to ClusterIP as well. Can be IPv4 and/or IPv6.
+  ipFamilies: []
+
+podAnnotations: {}
+podLabels: {}
+
+# Default security context values are in deployment-controller.yaml
+podSecurityContext: {}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

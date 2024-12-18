@@ -17,6 +17,7 @@ import (
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
 
 	"github.com/stolostron/volsync-addon-controller/controllers"
+	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
 )
 
 var versionFromGit = "0.0.0"
@@ -31,6 +32,14 @@ func main() {
 
 	command := newCommand()
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
+
+	embeddedHelmChartsDir := os.Getenv("EMBEDDED_CHARTS_DIR")
+	// Load local embedded helm charts - will be read in as a charts object
+	err := helmutils.InitEmbeddedCharts(embeddedHelmChartsDir)
+	if err != nil {
+		fmt.Printf("error loading embedded chart: %s", err)
+		os.Exit(1)
+	}
 
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

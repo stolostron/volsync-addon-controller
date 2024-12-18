@@ -6,35 +6,28 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workv1 "open-cluster-management.io/api/work/v1"
-	policyv1 "open-cluster-management.io/config-policy-controller/api/v1"
-	policyv1beta1 "open-cluster-management.io/config-policy-controller/api/v1beta1"
 
 	"github.com/stolostron/volsync-addon-controller/controllers"
-	"github.com/stolostron/volsync-addon-controller/controllers/helmutils/helmutilstest"
 )
 
 // These tests are for deployment of VolSync as an OLM subscription
 // This is the old behavior and will not be used by default
 // (Only enabled if annotation is set on the managedclusteraddon)
-var _ = Describe("Addoncontroller - helm deployment tests", func() {
+var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
 
 	genericCodecs := serializer.NewCodecFactory(scheme.Scheme)
@@ -129,11 +122,16 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 			var mcAddon *addonv1alpha1.ManagedClusterAddOn
 			var manifestWork *workv1.ManifestWork
 			BeforeEach(func() {
-				// ManagedClusterAddon for the mgd cluster
+				// Create a ManagedClusterAddon for the mgd cluster
 				mcAddon = &addonv1alpha1.ManagedClusterAddOn{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "volsync",
 						Namespace: testManagedCluster.GetName(),
+						Annotations: map[string]string{
+							// Need to set special annotation to use OLM mode
+							//nolint: lll
+							controllers.AnnotationVolSyncAddonDeployTypeOverride: controllers.AnnotationVolSyncAddonDeployTypeOverrideOLMValue,
+						},
 					},
 					Spec: addonv1alpha1.ManagedClusterAddOnSpec{}, // Setting spec to empty
 				}
@@ -180,156 +178,145 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 				Expect(manifestWork).ToNot(BeNil())
 			})
 
-			testMgdClusterIsOpenShift := []bool{
-				true,
-				false,
-			}
+			Context("When installing into openshift-operators namespace (the default)", func() {
+				var operatorSubscription *operatorsv1alpha1.Subscription
 
-			for i := range testMgdClusterIsOpenShift {
-				mgdClusterIsOpenShift := testMgdClusterIsOpenShift[i]
+				JustBeforeEach(func() {
+					// When installing into the global operator namespace (openshift-operators)
+					// we should expect the manifestwork to contain only:
+					// - the operator subscription
+					Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(1))
 
-				whenText := "is OpenShift"
-				if !mgdClusterIsOpenShift {
-					whenText = "is NOT OpenShift"
-				}
+					// Subscription
+					subMF := manifestWork.Spec.Workload.Manifests[0]
+					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+					Expect(err).NotTo(HaveOccurred())
+					var ok bool
+					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+					Expect(ok).To(BeTrue())
+					Expect(operatorSubscription).NotTo(BeNil())
+					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
+					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
 
-				Context(fmt.Sprintf("When the managed cluster %s", whenText), func() {
-					expectedNamespace := controllers.DefaultHelmInstallNamespace
+					// No addonDeploymentConfig in these tests, so the operatorSub should not have any Config specified
+					Expect(operatorSubscription.Spec.Config).To(BeNil())
 
-					var namespaceObj *corev1.Namespace
-					var operatorPolicyObj *policyv1beta1.OperatorPolicy
-					var operatorPolicyAggregateClusterRoleObj *rbacv1.ClusterRole
-					var helmChartObjs []runtime.Object
+					// More specific checks done in tests
+				})
 
+				Context("When the ManagedClusterAddOn spec set an installNamespace", func() {
 					BeforeEach(func() {
-						namespaceObj = nil
-						operatorPolicyObj = nil
-						operatorPolicyAggregateClusterRoleObj = nil
-						helmChartObjs = nil
-
-						logger.Info("BeforeEach", "mgdClusterIsOpenShift", mgdClusterIsOpenShift)
-						if !mgdClusterIsOpenShift {
-							Eventually(func() error {
-								// Test managed cluster was already created in parent BeforeEach(), reload it and
-								// update to remove the label that shows that it's an Openshift cluster
-								err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(testManagedCluster), testManagedCluster)
-								if err != nil {
-									return err
-								}
-
-								// Delete label that indicates the mgd cluster is openshift
-								delete(testManagedCluster.Labels, "vendor")
-
-								return testK8sClient.Update(testCtx, testManagedCluster)
-							}, timeout, interval).Should(Succeed())
-						}
+						// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
+						// should still be valid here
+						mcAddon.Spec.InstallNamespace = "test1234"
 					})
-
-					JustBeforeEach(func() {
-						if mgdClusterIsOpenShift {
-							// 2 additional objects in manifest for OpenShift clusters,
-							// an OperatorPolicy to make sure OLM operator is uninstalled in the mgd cluster
-							// and also an aggregateclusterrole for the operatorpolicy
-							Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(15))
-						} else {
-							Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(13))
-						}
-
-						// Get objects from our manifest that are not part of the helm chart
-						for _, m := range manifestWork.Spec.Workload.Manifests {
-							obj, _, err := genericCodec.Decode(m.Raw, nil, nil)
-							Expect(err).NotTo(HaveOccurred())
-							objKind := obj.GetObjectKind().GroupVersionKind().Kind
-
-							switch objKind {
-							case "OperatorPolicy":
-								op, ok := obj.(*policyv1beta1.OperatorPolicy)
-								Expect(ok).To(BeTrue())
-								operatorPolicyObj = op
-							case "ClusterRole":
-								cr, ok := obj.(*rbacv1.ClusterRole)
-								Expect(ok).To(BeTrue())
-								if strings.Contains(cr.GetName(), "operatorpolicy-aggregate") {
-									// This is our operator policy clusterrole
-									operatorPolicyAggregateClusterRoleObj = cr
-								} else {
-									// This is a clusterrole from the helm chart
-									helmChartObjs = append(helmChartObjs, obj)
-								}
-							case "Namespace":
-								ns, ok := obj.(*corev1.Namespace)
-								Expect(ok).To(BeTrue())
-								namespaceObj = ns
-							default:
-								// This object came from the helm chart
-								helmChartObjs = append(helmChartObjs, obj)
-							}
-						}
-
-						Expect(namespaceObj).NotTo(BeNil())
-
-						if mgdClusterIsOpenShift {
-							Expect(operatorPolicyObj).NotTo(BeNil())
-							Expect(operatorPolicyAggregateClusterRoleObj).NotTo(BeNil())
-
-							// OperatorPolicy (on the mgd cluster) needs to be in the ns named the same as the mgd cluster
-							Expect(operatorPolicyObj.GetNamespace()).To(Equal(testManagedCluster.GetName()))
-							Expect(strings.EqualFold(
-								string(operatorPolicyObj.Spec.ComplianceType), string(policyv1.MustNotHave))).To(BeTrue())
-							Expect(strings.EqualFold(
-								string(operatorPolicyObj.Spec.RemediationAction), string(policyv1.Enforce))).To(BeTrue())
-							Expect(operatorPolicyObj.Spec.RemovalBehavior).To(Equal(
-								policyv1beta1.RemovalBehavior{
-									CSVs:           policyv1beta1.Delete,
-									CRDs:           policyv1beta1.Keep, // this is important!
-									OperatorGroups: policyv1beta1.Keep,
-									Subscriptions:  policyv1beta1.Delete,
-								}))
-
-							type nameAndNamspace struct {
-								Name      string `yaml:"name"`
-								Namespace string `yaml:"namespace"`
-							}
-							objSubNameAndNamespace := nameAndNamspace{}
-							Expect(yaml.Unmarshal(operatorPolicyObj.Spec.Subscription.Raw, &objSubNameAndNamespace)).To(Succeed())
-
-							Expect(objSubNameAndNamespace.Name).To(Equal("volsync-product"))
-							Expect(objSubNameAndNamespace.Namespace).To(Equal("openshift-operators"))
-						} else {
-							// No operatorpolicy or aggregate cluster role needed for non-OpenShift
-							Expect(operatorPolicyObj).To(BeNil())
-							Expect(operatorPolicyAggregateClusterRoleObj).To(BeNil())
-						}
-
-						// In all cases here we expect the namespace to be the default
-						Expect(namespaceObj.GetName()).To(Equal(expectedNamespace))
-					})
-
-					Context("When the ManagedClusterAddOn spec does not set an installNamespace", func() {
-						It("Should install to default namespace", func() {
-							// should this get set in the managedclusteraddon.spec.InstallNamespace as well?
-							helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
-								expectedNamespace, mgdClusterIsOpenShift)
-						})
-					})
-
-					Context("When the ManagedClusterAddOn spec sets an installNamespace", func() {
-						BeforeEach(func() {
-							// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
-							// should still be valid here
-							mcAddon.Spec.InstallNamespace = "test1234"
-						})
-						It("Should still install to the default namespace", func() {
-							// Code shouldn't have alterted the spec - but tests above will confirm that the
-							// operatorgroup/subscription were created in volsync-system
-							Expect(mcAddon.Spec.InstallNamespace).To(Equal("test1234"))
-
-							helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
-								expectedNamespace, mgdClusterIsOpenShift)
-						})
+					It("Should still install to the default openshift-operators namespace", func() {
+						// Code shouldn't have alterted the spec - but tests above will confirm that the
+						// operatorgroup/subscription were created in volsync-system
+						Expect(mcAddon.Spec.InstallNamespace).To(Equal("test1234"))
 					})
 				})
-			}
+
+				Context("When no annotations are on the managedclusteraddon", func() {
+					It("Should create the subscription (within the ManifestWork) with proper defaults", func() {
+						// This ns is now the default in the mcao crd so will be used - note we ignore this
+						// and use openshift-operators (see the created subscription)
+						Expect(mcAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
+
+						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
+						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
+							controllers.DefaultInstallPlanApproval))
+						Expect(operatorSubscription.Spec.CatalogSource).To(Equal(controllers.DefaultCatalogSource))
+						Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
+							controllers.DefaultCatalogSourceNamespace))
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
+					})
+				})
+
+				Context("When the annotation to override the CatalogSource is on the managedclusteraddon", func() {
+					BeforeEach(func() {
+						mcAddon.Annotations[controllers.AnnotationCatalogSourceOverride] = "customcatalog-source"
+					})
+					It("Should create the subscription (within the ManifestWork) with proper CatalogSource", func() {
+						Expect(operatorSubscription.Spec.CatalogSource).To(Equal("customcatalog-source"))
+
+						// The rest should be defaults
+						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
+						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
+							controllers.DefaultInstallPlanApproval))
+						Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
+							controllers.DefaultCatalogSourceNamespace))
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
+					})
+				})
+
+				Context("When the annotation to override the CatalogSourceNS is on the managedclusteraddon", func() {
+					BeforeEach(func() {
+						mcAddon.Annotations[controllers.AnnotationCatalogSourceNamespaceOverride] = "my-catalog-source-ns"
+					})
+					It("Should create the subscription (within the ManifestWork) with proper CatalogSourceNS", func() {
+						Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
+							"my-catalog-source-ns"))
+
+						// The rest should be defaults
+						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
+						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
+							controllers.DefaultInstallPlanApproval))
+						Expect(operatorSubscription.Spec.CatalogSource).To(Equal(controllers.DefaultCatalogSource))
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
+					})
+				})
+
+				Context("When the annotation to override the InstallPlanApproval is on the managedclusteraddon", func() {
+					BeforeEach(func() {
+						mcAddon.Annotations[controllers.AnnotationInstallPlanApprovalOverride] = "Manual"
+					})
+					It("Should create the subscription (within the ManifestWork) with proper CatalogSourceNS", func() {
+						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal("Manual"))
+
+						// The rest should be defaults
+						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
+						Expect(operatorSubscription.Spec.CatalogSource).To(Equal(controllers.DefaultCatalogSource))
+						Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
+							controllers.DefaultCatalogSourceNamespace))
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
+					})
+				})
+
+				Context("When the annotation to override the Channel is on the managedclusteraddon", func() {
+					BeforeEach(func() {
+						mcAddon.Annotations[controllers.AnnotationChannelOverride] = "special-channel-1.2.3"
+					})
+					It("Should create the subscription (within the ManifestWork) with proper CatalogSourceNS", func() {
+						Expect(operatorSubscription.Spec.Channel).To(Equal("special-channel-1.2.3"))
+
+						// The rest should be defaults
+						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
+							controllers.DefaultInstallPlanApproval))
+						Expect(operatorSubscription.Spec.CatalogSource).To(Equal(controllers.DefaultCatalogSource))
+						Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
+							controllers.DefaultCatalogSourceNamespace))
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
+					})
+				})
+
+				Context("When the annotation to override the StartingCSV is on the managedclusteraddon", func() {
+					BeforeEach(func() {
+						mcAddon.Annotations[controllers.AnnotationStartingCSVOverride] = "volsync.v1.2.3.doesnotexist"
+					})
+					It("Should create the subscription (within the ManifestWork) with proper CatalogSourceNS", func() {
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal("volsync.v1.2.3.doesnotexist"))
+
+						// The rest should be defaults
+						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
+						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
+							controllers.DefaultInstallPlanApproval))
+						Expect(operatorSubscription.Spec.CatalogSource).To(Equal(controllers.DefaultCatalogSource))
+						Expect(operatorSubscription.Spec.CatalogSourceNamespace).To(Equal(
+							controllers.DefaultCatalogSourceNamespace))
+					})
+				})
+			})
 		})
 
 		Context("When the manifestwork already exists", func() {
@@ -366,6 +353,11 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "volsync",
 						Namespace: testManagedCluster.GetName(),
+						Annotations: map[string]string{
+							// Need to set special annotation to use OLM mode
+							//nolint: lll
+							controllers.AnnotationVolSyncAddonDeployTypeOverride: controllers.AnnotationVolSyncAddonDeployTypeOverrideOLMValue,
+						},
 					},
 					Spec: addonv1alpha1.ManagedClusterAddOnSpec{}, // Setting spec to empty
 				}
@@ -402,9 +394,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					myMw := &allMwList.Items[0]
 					Expect(myMw.GetName()).To(Equal(fakeOlderMw.GetName()))
 
-					// Default test above simulates an openshift cluster,
-					// so expect 15 manifests in the manifestwork
-					return len(myMw.Spec.Workload.Manifests) == 15
+					if len(myMw.Spec.Workload.Manifests) != 1 {
+						// Manifestwork hasn't been updated with the subscription yet
+						return false
+					}
+
+					Expect(myMw.Spec.Workload.Manifests[0])
+					subObj, _, err := genericCodec.Decode(myMw.Spec.Workload.Manifests[0].Raw, nil, nil)
+					Expect(err).NotTo(HaveOccurred())
+					operatorSubscription, ok := subObj.(*operatorsv1alpha1.Subscription)
+
+					return ok && operatorSubscription != nil
 				}, timeout, interval).Should(BeTrue())
 			})
 		})
@@ -413,18 +413,19 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 			Context("When a ManagedClusterAddOn is created with node selectors and tolerations", func() {
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
 				var manifestWork *workv1.ManifestWork
-				//				var operatorSubscription *operatorsv1alpha1.Subscription
-
-				var volsyncDeployment *appsv1.Deployment
+				var operatorSubscription *operatorsv1alpha1.Subscription
 
 				BeforeEach(func() {
-					volsyncDeployment = nil
-
 					// Create a ManagedClusterAddon for the mgd cluster using an addonDeploymentconfig
 					mcAddon = &addonv1alpha1.ManagedClusterAddOn{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "volsync",
 							Namespace: testManagedCluster.GetName(),
+							Annotations: map[string]string{
+								// Need to set special annotation to use OLM mode
+								//nolint: lll
+								controllers.AnnotationVolSyncAddonDeployTypeOverride: controllers.AnnotationVolSyncAddonDeployTypeOverrideOLMValue,
+							},
 						},
 						Spec: addonv1alpha1.ManagedClusterAddOnSpec{}, // Setting spec to empty
 					}
@@ -470,18 +471,21 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 					Expect(manifestWork).ToNot(BeNil())
 
-					// Find the deployment in the manifestwork
-					var err error
-					volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(manifestWork, genericCodec)
+					// Subscription
+					subMF := manifestWork.Spec.Workload.Manifests[0]
+					subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(volsyncDeployment.GetNamespace()).To(Equal("volsync-system"))
-					Expect(volsyncDeployment.GetName()).To(Equal("volsync"))
+					var ok bool
+					operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+					Expect(ok).To(BeTrue())
+					Expect(operatorSubscription).NotTo(BeNil())
+					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
+					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
 				})
 
 				Context("When no addonDeploymentConfig is referenced", func() {
-					It("Should create deployment in the manifestwork with no tolerations or selectors", func() {
-						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(BeNil())
-						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+					It("Should create the sub in the manifestwork with no tolerations or selectors", func() {
+						Expect(operatorSubscription.Spec.Config).To(BeNil())
 					})
 
 					Context("When the managedclusteraddon is updated later with a addondeploymentconfig", func() {
@@ -507,8 +511,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						})
 
 						It("Should update the existing manifestwork with the addondeploymentconfig", func() {
-							Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(BeNil())
-							Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
+							Expect(operatorSubscription.Spec.Config).To(BeNil())
 
 							// Update the managedclusteraddon to reference the addonDeploymentConfig
 							Eventually(func() error {
@@ -555,7 +558,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							// and tolerations
 
 							var manifestWorkReloaded *workv1.ManifestWork
-							var volsyncDeploymentReloaded *appsv1.Deployment
+							var operatorSubscriptionReloaded *operatorsv1alpha1.Subscription
 
 							Eventually(func() bool {
 								allMwList := &workv1.ManifestWorkList{}
@@ -571,25 +574,27 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 										break
 									}
 								}
+
+								logger.Info(">>>>> ManifestWorkreloaded <<<", "manifestWorkReloaded", &manifestWorkReloaded)
 								if manifestWorkReloaded == nil {
 									return false
 								}
 
-								// Find the deployment in the manifestwork
-								var err error
-								volsyncDeploymentReloaded, err = getVolSyncDeploymentFromManifestWork(
-									manifestWorkReloaded, genericCodec)
-								if err != nil {
-									return false
-								}
+								// Subscription
+								subMF := manifestWorkReloaded.Spec.Workload.Manifests[0]
+								subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+								Expect(err).NotTo(HaveOccurred())
+								var ok bool
+								operatorSubscriptionReloaded, ok = subObj.(*operatorsv1alpha1.Subscription)
+								Expect(ok).To(BeTrue())
+								Expect(operatorSubscriptionReloaded).NotTo(BeNil())
 
-								// If the deployment nodeSelector and tolerations have been set, then it's been updated
-								return volsyncDeploymentReloaded.Spec.Template.Spec.Tolerations != nil &&
-									volsyncDeploymentReloaded.Spec.Template.Spec.NodeSelector != nil
+								// If spec.config has been set, then it's been updated
+								return operatorSubscriptionReloaded.Spec.Config != nil
 							}, timeout, interval).Should(BeTrue())
 
-							Expect(volsyncDeploymentReloaded.Spec.Template.Spec.NodeSelector).To(Equal(nodePlacement.NodeSelector))
-							Expect(volsyncDeploymentReloaded.Spec.Template.Spec.Tolerations).To(Equal(nodePlacement.Tolerations))
+							Expect(operatorSubscriptionReloaded.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+							Expect(operatorSubscriptionReloaded.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
 						})
 					})
 				})
@@ -647,22 +652,23 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
-							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
-							if err != nil {
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
 								return false
 							}
-
-							// If the deployment nodeSelector has been set, then it's been updated
-							return volsyncDeployment.Spec.Template.Spec.NodeSelector != nil
+							return operatorSubscription.Spec.Config != nil
 						}, timeout, interval).Should(BeTrue())
 					})
 
-					It("Should create the deployment in the manifestwork wiith the node selector", func() {
-						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(Equal(nodePlacement.NodeSelector))
-						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(BeNil()) // No tolerations set
+					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(BeNil()) // No tolerations set
 					})
 				})
 
@@ -722,26 +728,27 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
-							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
-							if err != nil {
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
 								return false
 							}
-
-							// If the deployment nodeSelector has been set, then it's been updated
-							return volsyncDeployment.Spec.Template.Spec.Tolerations != nil
+							return operatorSubscription.Spec.Config != nil
 						}, timeout, interval).Should(BeTrue())
 					})
 
-					It("Should create the deployment in the manifestwork wiith the node selector", func() {
-						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(Equal(nodePlacement.Tolerations))
-						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(BeNil()) // No selectors set
+					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(BeNil()) // No selectors set
 					})
 				})
 
-				Context("When the addonDeployment config has nodeSelector and tolerations", func() {
+				Context("When the addonDeployment config has nodeSelector and tolerations and nodeSelector", func() {
 					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
 					nodePlacement := &addonv1alpha1.NodePlacement{
 						NodeSelector: map[string]string{
@@ -806,23 +813,23 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
-							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
-							if err != nil {
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
 								return false
 							}
-
-							// If the deployment nodeSelector has been set, then it's been updated
-							return volsyncDeployment.Spec.Template.Spec.Tolerations != nil &&
-								volsyncDeployment.Spec.Template.Spec.NodeSelector != nil
+							return operatorSubscription.Spec.Config != nil
 						}, timeout, interval).Should(BeTrue())
 					})
 
-					It("Should create the deployment in the manifestwork with the node selector", func() {
-						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(Equal(nodePlacement.NodeSelector))
-						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(Equal(nodePlacement.Tolerations))
+					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
 					})
 				})
 			})
@@ -831,10 +838,9 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 				"selectors/tolerations", func() {
 				var defaultAddonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
+				var operatorSubscription *operatorsv1alpha1.Subscription
 				var defaultNodePlacement *addonv1alpha1.NodePlacement
 				var manifestWork *workv1.ManifestWork
-
-				var volsyncDeployment *appsv1.Deployment
 
 				myTolerationSeconds := int64(25)
 
@@ -873,6 +879,12 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "volsync",
 							Namespace: testManagedCluster.GetName(),
+							Annotations: map[string]string{
+								// Need to set special annotation to use OLM mode
+								//nolint: lll
+								controllers.AnnotationVolSyncAddonDeployTypeOverride: controllers.AnnotationVolSyncAddonDeployTypeOverrideOLMValue,
+								"operator-subscription-channel":                      "stable",
+							},
 						},
 						Spec: addonv1alpha1.ManagedClusterAddOnSpec{}, // Setting spec to empty
 					}
@@ -1004,26 +1016,29 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							return false
 						}
 
-						// Find the deployment in the manifestwork
-						var err error
-						volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-							manifestWork, genericCodec)
-						if err != nil {
+						// Subscription
+						subMF := manifestWork.Spec.Workload.Manifests[0]
+						subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+						Expect(err).NotTo(HaveOccurred())
+						var ok bool
+						operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+						if !ok {
 							return false
 						}
-
-						// If the deployment nodeSelector has been set, then it's been updated
-						return volsyncDeployment.Spec.Template.Spec.Tolerations != nil &&
-							volsyncDeployment.Spec.Template.Spec.NodeSelector != nil
+						return operatorSubscription.Spec.Config != nil
 					}, timeout, interval).Should(BeTrue())
 
 					Expect(manifestWork).ToNot(BeNil())
-					Expect(volsyncDeployment).NotTo(BeNil())
-					Expect(volsyncDeployment.GetNamespace()).To(Equal("volsync-system"))
+					Expect(operatorSubscription).NotTo(BeNil())
+					Expect(operatorSubscription.GetNamespace()).To(Equal("openshift-operators"))
+					Expect(operatorSubscription.Spec.Package).To(Equal("volsync-product")) // This is the "name" in json
+
+					// Check the annotation was still honoured
+					Expect(operatorSubscription.Spec.Channel).To(Equal("stable"))
 				})
 
 				Context("When a ManagedClusterAddOn is created with no addonConfig specified (the default)", func() {
-					It("Should create the deployment in the manifestwork with the default node selector and tolerations", func() {
+					It("Should create the sub in the manifestwork with the default node selector and tolerations", func() {
 						// re-load the addon - status should be updated with details of the default deploymentConfig
 						Expect(testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)).To(Succeed())
 						// Should be 1 config ref (our default addondeploymentconfig)
@@ -1034,8 +1049,9 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(defaultAddonDeploymentConfig.GetNamespace()))
 						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal("")) // SpecHash should be set by controller
 
-						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(Equal(defaultNodePlacement.NodeSelector))
-						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(Equal(defaultNodePlacement.Tolerations))
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(defaultNodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(defaultNodePlacement.Tolerations))
 					})
 				})
 
@@ -1106,7 +1122,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 					})
 
-					It("Should create the deployment in the manifestwork with the node selector and tolerations from "+
+					It("Should create the sub in the manifestwork with the node selector and tolerations from "+
 						" the managedclusteraddon, not the defaults", func() {
 						// Now re-load the manifestwork, based on timing it could haver originally
 						// been updated with the defaults from the CMA - eventually should get updated properly
@@ -1116,18 +1132,23 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
-							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
-							if err != nil {
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							if operatorSubscription.Spec.Config == nil {
 								return false
 							}
 
 							// Check that the node selector matches the # of keys from the addondeploymentconfig
 							// It won't match if the subscription is still using the default addondeploymentconfig
 							// as it has different nodeSelector
-							return len(volsyncDeployment.Spec.Template.Spec.NodeSelector) == len(nodePlacement.NodeSelector)
+							return len(operatorSubscription.Spec.Config.NodeSelector) == len(nodePlacement.NodeSelector)
 						}, timeout, interval).Should(BeTrue())
 
 						// re-load the addon - status should be updated with details of the default deploymentConfig
@@ -1140,77 +1161,80 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(addonDeploymentConfig.GetNamespace()))
 						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal("")) // SpecHash should be set by controller
 
-						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(Equal(nodePlacement.NodeSelector))
-						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(Equal(nodePlacement.Tolerations))
+						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
+						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
+						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
 					})
 				})
 			})
 		})
 	})
 
-	Context("When a ManagedClusterExists with the install volsync addon label", func() {
-		var testManagedCluster *clusterv1.ManagedCluster
-		var testManagedClusterNamespace *corev1.Namespace
+	/*
+		Context("When a ManagedClusterExists with the install volsync addon label", func() {
+			var testManagedCluster *clusterv1.ManagedCluster
+			var testManagedClusterNamespace *corev1.Namespace
 
-		BeforeEach(func() {
-			// Create a managed cluster CR to use for this test - with volsync addon install label
-			testManagedCluster = &clusterv1.ManagedCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "addon-mgdcluster-",
-					Labels: map[string]string{
-						"vendor": "OpenShift",
-						controllers.ManagedClusterInstallVolSyncLabel: controllers.ManagedClusterInstallVolSyncLabelValue,
+			BeforeEach(func() {
+				// Create a managed cluster CR to use for this test - with volsync addon install label
+				testManagedCluster = &clusterv1.ManagedCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "addon-mgdcluster-",
+						Labels: map[string]string{
+							"vendor": "OpenShift",
+							controllers.ManagedClusterInstallVolSyncLabel: controllers.ManagedClusterInstallVolSyncLabelValue,
+						},
 					},
-				},
-			}
-
-			Expect(testK8sClient.Create(testCtx, testManagedCluster)).To(Succeed())
-			Expect(testManagedCluster.Name).NotTo(BeEmpty())
-
-			// Fake the status of the mgd cluster to be available
-			Eventually(func() error {
-				err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(testManagedCluster), testManagedCluster)
-				if err != nil {
-					return err
 				}
 
-				clusterAvailableCondition := metav1.Condition{
-					Type:    clusterv1.ManagedClusterConditionAvailable,
-					Status:  metav1.ConditionTrue,
-					Reason:  "testupdate",
-					Message: "faking cluster available for test",
+				Expect(testK8sClient.Create(testCtx, testManagedCluster)).To(Succeed())
+				Expect(testManagedCluster.Name).NotTo(BeEmpty())
+
+				// Fake the status of the mgd cluster to be available
+				Eventually(func() error {
+					err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(testManagedCluster), testManagedCluster)
+					if err != nil {
+						return err
+					}
+
+					clusterAvailableCondition := metav1.Condition{
+						Type:    clusterv1.ManagedClusterConditionAvailable,
+						Status:  metav1.ConditionTrue,
+						Reason:  "testupdate",
+						Message: "faking cluster available for test",
+					}
+					meta.SetStatusCondition(&testManagedCluster.Status.Conditions, clusterAvailableCondition)
+
+					return testK8sClient.Status().Update(testCtx, testManagedCluster)
+				}, timeout, interval).Should(Succeed())
+
+				// Create a matching namespace for this managed cluster
+				// (namespace with name=managedclustername is expected to exist on the hub)
+				testManagedClusterNamespace = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: testManagedCluster.GetName(),
+					},
 				}
-				meta.SetStatusCondition(&testManagedCluster.Status.Conditions, clusterAvailableCondition)
+				Expect(testK8sClient.Create(testCtx, testManagedClusterNamespace)).To(Succeed())
+			})
 
-				return testK8sClient.Status().Update(testCtx, testManagedCluster)
-			}, timeout, interval).Should(Succeed())
+			It("Should automatically create a ManagedClusterAddon for volsync in the managedcluster namespace", func() {
+				vsAddon := &addonv1alpha1.ManagedClusterAddOn{}
 
-			// Create a matching namespace for this managed cluster
-			// (namespace with name=managedclustername is expected to exist on the hub)
-			testManagedClusterNamespace = &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: testManagedCluster.GetName(),
-				},
-			}
-			Expect(testK8sClient.Create(testCtx, testManagedClusterNamespace)).To(Succeed())
+				// The controller should create a volsync ManagedClusterAddOn in the ManagedCluster NS
+				Eventually(func() error {
+					return testK8sClient.Get(testCtx, types.NamespacedName{
+						Name:      "volsync",
+						Namespace: testManagedCluster.GetName(),
+					}, vsAddon)
+				}, timeout, interval).Should(Succeed())
+
+				// This ns is now the default in the mcao crd so will be used since we don't set it - note we ignore
+				// this and use openshift-operators (see the created subscription)
+				Expect(vsAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
+			})
 		})
-
-		It("Should automatically create a ManagedClusterAddon for volsync in the managedcluster namespace", func() {
-			vsAddon := &addonv1alpha1.ManagedClusterAddOn{}
-
-			// The controller should create a volsync ManagedClusterAddOn in the ManagedCluster NS
-			Eventually(func() error {
-				return testK8sClient.Get(testCtx, types.NamespacedName{
-					Name:      "volsync",
-					Namespace: testManagedCluster.GetName(),
-				}, vsAddon)
-			}, timeout, interval).Should(Succeed())
-
-			// This ns is now the default in the mcao crd so will be used since we don't set it - note we ignore
-			// this and use openshift-operators (see the created subscription)
-			Expect(vsAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
-		})
-	})
+	*/
 })
 
 var _ = Describe("Addon Status Update Tests", func() {
@@ -1311,6 +1335,11 @@ var _ = Describe("Addon Status Update Tests", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "volsync",
 						Namespace: testManagedClusterNamespace.GetName(),
+						Annotations: map[string]string{
+							// Need to set special annotation to use OLM mode
+							//nolint: lll
+							controllers.AnnotationVolSyncAddonDeployTypeOverride: controllers.AnnotationVolSyncAddonDeployTypeOverrideOLMValue,
+						},
 					},
 					Spec: addonv1alpha1.ManagedClusterAddOnSpec{},
 				}
@@ -1333,7 +1362,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 				}, timeout, interval).Should(Succeed())
 			})
 
-			Context("When the manifestwork is available", func() {
+			Context("When the managed cluster is an OpenShiftCluster and manifestwork is available", func() {
 				JustBeforeEach(func() {
 					// The controller should create a ManifestWork for this ManagedClusterAddon
 					// Fake out that the ManifestWork is applied and available
@@ -1397,7 +1426,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 					})
 				})
 
-				Context("When the manifestwork statusFeedback for the deployment does not have ready replicas", func() {
+				Context("When the manifestwork statusFeedback is returned with a bad value", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
 							// Update the manifestwork to set the statusfeedback to a bad value
@@ -1418,10 +1447,8 @@ var _ = Describe("Addon Status Update Tests", func() {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							// Set status feedback to indicate desired replicas = 1 but no ready replicas
-							replicas := int64(1)
-							manifestWork.Status.ResourceStatus =
-								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, nil)
+							manifestWork.Status.ResourceStatus = manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
+								"notinstalled")
 
 							return testK8sClient.Status().Update(testCtx, manifestWork)
 						}, timeout, interval).Should(Succeed())
@@ -1443,17 +1470,18 @@ var _ = Describe("Addon Status Update Tests", func() {
 							if statusCondition == nil {
 								return false
 							}
+							logger.Info("statusCondition", "statusCondition", &statusCondition)
 							return statusCondition.Reason == "ProbeUnavailable"
 						}, timeout, interval).Should(BeTrue())
 
 						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
 						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
 						Expect(statusCondition.Message).To(ContainSubstring("Probe addon unavailable with err"))
-						Expect(statusCondition.Message).To(ContainSubstring("readyReplicas is not probed"))
+						Expect(statusCondition.Message).To(ContainSubstring("addon subscription not found"))
 					})
 				})
 
-				Context("When the manifestwork statusFeedback is returned with incorrect deployment ready replicas", func() {
+				Context("When the manifestwork statusFeedback is returned with a correct installed value", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
 							// Update the manifestwork to set the statusfeedback to a bad value
@@ -1474,70 +1502,8 @@ var _ = Describe("Addon Status Update Tests", func() {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							// Set status feedback to indicate desired replicas = 1 and ready replicas = 0
-							replicas := int64(1)
-							readyReplicas := int64(0)
-							manifestWork.Status.ResourceStatus =
-								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
-
-							return testK8sClient.Status().Update(testCtx, manifestWork)
-						}, timeout, interval).Should(Succeed())
-					})
-
-					It("Should set the ManagedClusterAddon status to unavailable", func() {
-						var statusCondition *metav1.Condition
-						Eventually(func() bool {
-							err := testK8sClient.Get(testCtx, types.NamespacedName{
-								Name:      "volsync",
-								Namespace: testManagedClusterNamespace.GetName(),
-							}, mcAddon)
-							if err != nil {
-								return false
-							}
-
-							statusCondition = meta.FindStatusCondition(mcAddon.Status.Conditions,
-								addonv1alpha1.ManagedClusterAddOnConditionAvailable)
-							if statusCondition == nil {
-								return false
-							}
-							return statusCondition.Reason == "ProbeUnavailable"
-						}, timeout, interval).Should(BeTrue())
-
-						logger.Info("#### status condition", "statusCondition", statusCondition)
-
-						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
-						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
-						Expect(statusCondition.Message).To(ContainSubstring("Probe addon unavailable with err"))
-						Expect(statusCondition.Message).To(ContainSubstring("desiredNumberReplicas is 1 but readyReplica is 0"))
-					})
-				})
-
-				Context("When the manifestwork statusFeedback is returned with correct deployment ready replicas", func() {
-					JustBeforeEach(func() {
-						Eventually(func() error {
-							// Update the manifestwork to set the statusfeedback to a bad value
-							var manifestWork *workv1.ManifestWork
-
-							allMwList := &workv1.ManifestWorkList{}
-							Expect(testK8sClient.List(testCtx, allMwList,
-								client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-							for _, mw := range allMwList.Items {
-								if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-									manifestWork = &mw
-									break
-								}
-							}
-
-							if manifestWork == nil {
-								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
-							}
-
-							// Set status feedback to indicate desired replicas = 1 and ready replicas = 1
-							replicas := int64(1)
-							readyReplicas := int64(1)
-							manifestWork.Status.ResourceStatus =
-								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
+							manifestWork.Status.ResourceStatus = manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
+								"volsync-product.v0.4.0")
 
 							return testK8sClient.Status().Update(testCtx, manifestWork)
 						}, timeout, interval).Should(Succeed())
@@ -1574,27 +1540,27 @@ var _ = Describe("Addon Status Update Tests", func() {
 	})
 })
 
-func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
-	replicas, readyReplicas *int64,
+func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
+	installedCSVValue string,
 ) workv1.ManifestResourceStatus {
-	mrStatus := workv1.ManifestResourceStatus{
+	return workv1.ManifestResourceStatus{
 		Manifests: []workv1.ManifestCondition{
 			{
 				ResourceMeta: workv1.ManifestResourceMeta{
-					Group:     "apps",
-					Kind:      "Deployment",
-					Name:      "volsync",
-					Namespace: "volsync-system",
-					Resource:  "deployments",
-					Version:   "v1",
+					Group:     "operators.coreos.com",
+					Kind:      "Subscription",
+					Name:      "volsync-product",
+					Namespace: "openshift-operators",
+					Resource:  "subscriptions",
+					Version:   "v1alpha1",
 				},
 				StatusFeedbacks: workv1.StatusFeedbackResult{
 					Values: []workv1.FeedbackValue{
 						{
-							Name: "Replicas",
+							Name: "installedCSV",
 							Value: workv1.FieldValue{
-								Type:    "Integer",
-								Integer: replicas,
+								Type:   "String",
+								String: &installedCSVValue,
 							},
 						},
 					},
@@ -1603,125 +1569,4 @@ func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
 			},
 		},
 	}
-
-	if readyReplicas != nil {
-		mrStatus.Manifests[0].StatusFeedbacks.Values = append(mrStatus.Manifests[0].StatusFeedbacks.Values,
-			workv1.FeedbackValue{
-				Name: "ReadyReplicas",
-				Value: workv1.FieldValue{
-					Type:    "Integer",
-					Integer: readyReplicas,
-				},
-			},
-		)
-	}
-
-	return mrStatus
-}
-
-func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement) *addonv1alpha1.AddOnDeploymentConfig {
-	// Create a ns to host the addondeploymentconfig
-	// These can be accessed globally, so could be in the mgd cluster namespace
-	// but, creating a new ns for each one to keep the tests simple
-	tempNamespace := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-temp-",
-		},
-	}
-	Expect(testK8sClient.Create(testCtx, tempNamespace)).To(Succeed())
-
-	// Create an addonDeploymentConfig
-	customAddonDeploymentConfig := &addonv1alpha1.AddOnDeploymentConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment-config-1",
-			Namespace: tempNamespace.GetName(),
-		},
-		Spec: addonv1alpha1.AddOnDeploymentConfigSpec{
-			NodePlacement: nodePlacement,
-		},
-	}
-	Expect(testK8sClient.Create(testCtx, customAddonDeploymentConfig)).To(Succeed())
-
-	return customAddonDeploymentConfig
-}
-
-//nolint:unparam
-func cleanupAddonDeploymentConfig(
-	addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig, cleanupNamespace bool,
-) {
-	// Assumes the addondeploymentconfig has its own namespace - cleans up the addondeploymentconfig
-	// and optionally the namespace as well
-	nsName := addonDeploymentConfig.GetNamespace()
-	Expect(testK8sClient.Delete(testCtx, addonDeploymentConfig)).To(Succeed())
-	if cleanupNamespace {
-		ns := &corev1.Namespace{}
-		Expect(testK8sClient.Get(testCtx, types.NamespacedName{Name: nsName}, ns)).To(Succeed())
-		Expect(testK8sClient.Delete(testCtx, ns)).To(Succeed())
-	}
-}
-
-func addCMAOwnership(cma *addonv1alpha1.ClusterManagementAddOn,
-	managedClusterAddOn *addonv1alpha1.ManagedClusterAddOn,
-) error {
-	if err := ctrlutil.SetOwnerReference(cma, managedClusterAddOn, testK8sClient.Scheme()); err != nil {
-		return err
-	}
-
-	return testK8sClient.Update(testCtx, managedClusterAddOn)
-}
-
-func addDeploymentConfigStatusEntry(managedClusterAddOn *addonv1alpha1.ManagedClusterAddOn,
-	addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig,
-) error {
-	managedClusterAddOn.Status.ConfigReferences = []addonv1alpha1.ConfigReference{
-		{
-			// ConfigReferent is deprecated, but api complains if ConfigReferent.Name is not specified
-			ConfigReferent: addonv1alpha1.ConfigReferent{
-				Name:      addonDeploymentConfig.GetName(),
-				Namespace: addonDeploymentConfig.GetNamespace(),
-			},
-			ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
-				Group:    addonframeworkutils.AddOnDeploymentConfigGVR.Group,
-				Resource: addonframeworkutils.AddOnDeploymentConfigGVR.Resource,
-			},
-			DesiredConfig: &addonv1alpha1.ConfigSpecHash{
-				ConfigReferent: addonv1alpha1.ConfigReferent{
-					Name:      addonDeploymentConfig.GetName(),
-					Namespace: addonDeploymentConfig.GetNamespace(),
-				},
-				SpecHash: "fakehashfortest",
-			},
-		},
-	}
-
-	return testK8sClient.Status().Update(testCtx, managedClusterAddOn)
-}
-
-func getVolSyncDeploymentFromManifestWork(manifestWork *workv1.ManifestWork,
-	decoder runtime.Decoder) (*appsv1.Deployment, error) {
-	var volsyncDeployment *appsv1.Deployment
-
-	// Find the volsync deployment in the manifestwork
-	for _, workObj := range manifestWork.Spec.Workload.Manifests {
-		obj, _, err := decoder.Decode(workObj.Raw, nil, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		// This assumes there should be only 1 deployment in the manifestwork
-		if obj.GetObjectKind().GroupVersionKind().Kind == "Deployment" {
-			var ok bool
-			volsyncDeployment, ok = obj.(*appsv1.Deployment)
-			if !ok {
-				return nil, fmt.Errorf("Unable to decode Deployment from manifestwork")
-			}
-			break
-		}
-	}
-
-	if volsyncDeployment == nil || volsyncDeployment.GetName() != "volsync" {
-		return nil, fmt.Errorf("Unable to find volsync deployment in manifestwork")
-	}
-
-	return volsyncDeployment, nil
 }

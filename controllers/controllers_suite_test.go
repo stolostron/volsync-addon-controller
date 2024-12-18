@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -20,8 +21,10 @@ import (
 
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	policyv1beta1 "open-cluster-management.io/config-policy-controller/api/v1beta1"
 
 	"github.com/stolostron/volsync-addon-controller/controllers"
+	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
 )
 
 var testEnv *envtest.Environment
@@ -46,6 +49,20 @@ var _ = BeforeSuite(func() {
 	testCtx, cancel = context.WithCancel(context.TODO())
 
 	By("bootstrapping test environment")
+
+	// Load embedded charts
+	// Find the location of where we have the test charts
+	wd, err := os.Getwd() // This should be our helmutils pkg dir
+	Expect(err).NotTo(HaveOccurred())
+	// Charts located in /helmcharts
+	testChartsDir := filepath.Join(wd, "..", "helmcharts")
+
+	klog.InfoS("Loading charts", "testChartsDir", testChartsDir)
+	// Load our test charts (these charts in testcharts are for test only and different from
+	// the charts that we'll bundle with the actual controller).
+	Expect(helmutils.InitEmbeddedCharts(testChartsDir)).To(Succeed())
+
+	// Startup testenv
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			// CRDs
@@ -72,6 +89,8 @@ var _ = BeforeSuite(func() {
 	err = operatorsv1.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
 	err = operatorsv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(err).ToNot(HaveOccurred())
+	err = policyv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
 
 	testK8sClient, err = client.New(cfg, client.Options{})

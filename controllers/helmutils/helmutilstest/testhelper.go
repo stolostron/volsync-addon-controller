@@ -10,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+
+	"github.com/stolostron/volsync-addon-controller/controllers"
 )
 
 //nolint:funlen
@@ -130,6 +132,13 @@ func VerifyHelmRenderedVolSyncObjects(objs []runtime.Object,
 		Expect(deployment.Spec.Template.Spec.SecurityContext.RunAsUser).NotTo(BeNil())
 		Expect(*deployment.Spec.Template.Spec.SecurityContext.RunAsUser).To(Equal(int64(65534)))
 	}
+
+	// Check ServiceAccount
+	// It should have the pull secret set
+	Expect(len(serviceAccount.ImagePullSecrets)).To(Equal(1))
+	Expect(serviceAccount.ImagePullSecrets[0]).To(Equal(corev1.LocalObjectReference{
+		Name: controllers.RHRegistryPullSecretName,
+	}))
 
 	// Return the deployment (can be checked further by tests)
 	return deployment

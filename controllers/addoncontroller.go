@@ -80,6 +80,13 @@ const (
 	AnnotationVolSyncAddonDeployTypeOverrideOLMValue = "olm"
 
 	AnnotationHelmChartKey = "helm-chart-key"
+
+	// This is the name of the pull secret that is copied to the namespace (volsync-system) on the managed
+	// cluster.  This will allow pulls to the redhat registry.
+	// (Other addons get this copied to open-cluster-management-agent-addon namespace on the mgd cluster)
+	// Note this secret is automatically copied to volsync-system via putting the
+	// label "addon.open-cluster-management.io/namespace":"true" on the volsync-system ns
+	RHRegistryPullSecretName = "open-cluster-management-image-pull-credentials"
 )
 
 func init() {
@@ -156,7 +163,6 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 							Resource:  "deployments",
 							Name:      "volsync",
 							Namespace: "*",
-							//Namespace: "volsync-system",
 						},
 						ProbeRules: []workapiv1.FeedbackRule{
 							{

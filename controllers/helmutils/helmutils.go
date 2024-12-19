@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -24,6 +25,7 @@ import (
 const (
 	defaultEmbeddedChartsDir = "/helmcharts"
 	crdKind                  = "CustomResourceDefinition"
+	serviceAccountKind       = "ServiceAccount"
 )
 
 // List of kinds of objects in the manifestwork - anything in this list will not have
@@ -88,6 +90,7 @@ func RenderManifestsFromChart(
 	clusterIsOpenShift bool,
 	chartValues map[string]interface{},
 	runtimeDecoder runtime.Decoder,
+	pullSecretForServiceAccount string,
 ) ([]runtime.Object, error) {
 	helmObjs := []runtime.Object{}
 
@@ -164,20 +167,39 @@ func RenderManifestsFromChart(
 			return nil, err
 		}
 
-		if gvk != nil {
-			if !slices.Contains(globalKinds, gvk.Kind) {
-				// Helm rendering does not set namespace on the templates, it will rely on the kubectl install/apply
-				// to do it (which does not happen since these objects end up directly in our manifestwork).
-				// So set the namespace ourselves for any object with kind not in our globalKinds list
-				templateObj.(metav1.Object).SetNamespace(releaseOptions.Namespace)
-			}
+		if gvk == nil {
+			gvkErr := fmt.Errorf("no gvk for template")
+			klog.Error(gvkErr, "Error decoding gvk from rendered template", "fileName", fileName)
+			return nil, gvkErr
+		}
 
-			if gvk.Kind == crdKind {
-				// Add annotation to indicate we do not want the CRD deleted when the manifestwork is deleted
-				// (i.e. when the managedclusteraddon is deleted)
-				crdAnnotations := templateObj.(metav1.Object).GetAnnotations()
-				crdAnnotations[addonapiv1alpha1.DeletionOrphanAnnotationKey] = ""
-				templateObj.(metav1.Object).SetAnnotations(crdAnnotations)
+		if !slices.Contains(globalKinds, gvk.Kind) {
+			// Helm rendering does not set namespace on the templates, it will rely on the kubectl install/apply
+			// to do it (which does not happen since these objects end up directly in our manifestwork).
+			// So set the namespace ourselves for any object with kind not in our globalKinds list
+			templateObj.(metav1.Object).SetNamespace(releaseOptions.Namespace)
+		}
+
+		// Special cases for specific resource kinds
+		switch gvk.Kind {
+		case crdKind:
+			// Add annotation to indicate we do not want the CRD deleted when the manifestwork is deleted
+			// (i.e. when the managedclusteraddon is deleted)
+			crdAnnotations := templateObj.(metav1.Object).GetAnnotations()
+			crdAnnotations[addonapiv1alpha1.DeletionOrphanAnnotationKey] = ""
+			templateObj.(metav1.Object).SetAnnotations(crdAnnotations)
+		case serviceAccountKind:
+			// Add pull secret to svc account
+			if pullSecretForServiceAccount != "" {
+				svcAccount, ok := templateObj.(*corev1.ServiceAccount)
+				if !ok {
+					svcAcctErr := fmt.Errorf("unable to decode service account resource")
+					klog.Error(svcAcctErr, "Error rendering helm chart")
+					return nil, svcAcctErr
+				}
+				svcAccount.ImagePullSecrets = append(svcAccount.ImagePullSecrets, corev1.LocalObjectReference{
+					Name: pullSecretForServiceAccount,
+				})
 			}
 		}
 

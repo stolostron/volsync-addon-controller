@@ -40,6 +40,8 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 	genericCodecs := serializer.NewCodecFactory(scheme.Scheme)
 	genericCodec := genericCodecs.UniversalDeserializer()
 
+	expectedVolSyncNamespace := controllers.DefaultHelmInstallNamespace
+
 	// Make sure a ClusterManagementAddOn exists for volsync or addon-framework will not reconcile
 	// VolSync ManagedClusterAddOns
 	var clusterManagementAddon *addonv1alpha1.ClusterManagementAddOn
@@ -194,8 +196,6 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 				}
 
 				Context(fmt.Sprintf("When the managed cluster %s", whenText), func() {
-					expectedNamespace := controllers.DefaultHelmInstallNamespace
-
 					var namespaceObj *corev1.Namespace
 					var operatorPolicyObj *policyv1beta1.OperatorPolicy
 					var operatorPolicyAggregateClusterRoleObj *rbacv1.ClusterRole
@@ -302,18 +302,29 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						}
 
 						// In all cases here we expect the namespace to be the default
-						Expect(namespaceObj.GetName()).To(Equal(expectedNamespace))
+						Expect(namespaceObj.GetName()).To(Equal(expectedVolSyncNamespace))
+						// Check that special label is set on the namespace to indicate that ACM should copy over the
+						// redhat registry pull secret (allows us to pull volsync images from registry.redhat.io in
+						// volsync-system)
+						nsLabels := namespaceObj.GetLabels()
+						Expect(len(nsLabels)).To(Equal(1))
+						pullSecretCopyLabel, ok := nsLabels["addon.open-cluster-management.io/namespace"]
+						Expect(ok).To(BeTrue())
+						Expect(pullSecretCopyLabel).To(Equal("true"))
 					})
 
 					Context("When the ManagedClusterAddOn spec does not set an installNamespace", func() {
 						It("Should install to default namespace", func() {
 							// should this get set in the managedclusteraddon.spec.InstallNamespace as well?
 							helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
-								expectedNamespace, mgdClusterIsOpenShift)
+								expectedVolSyncNamespace, mgdClusterIsOpenShift)
 						})
 					})
 
 					Context("When the ManagedClusterAddOn spec sets an installNamespace", func() {
+						// ManagedClusterAddon.Spec.InstallNamespace is essentially deprecated and should not be used
+						// See: https://github.com/open-cluster-management-io/ocm/issues/298
+						// volsync-addon-controller Code should ignore it
 						BeforeEach(func() {
 							// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
 							// should still be valid here
@@ -325,7 +336,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							Expect(mcAddon.Spec.InstallNamespace).To(Equal("test1234"))
 
 							helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
-								expectedNamespace, mgdClusterIsOpenShift)
+								expectedVolSyncNamespace, mgdClusterIsOpenShift)
 						})
 					})
 				})
@@ -474,7 +485,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					var err error
 					volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(manifestWork, genericCodec)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(volsyncDeployment.GetNamespace()).To(Equal("volsync-system"))
+					Expect(volsyncDeployment.GetNamespace()).To(Equal(expectedVolSyncNamespace))
 					Expect(volsyncDeployment.GetName()).To(Equal("volsync"))
 				})
 
@@ -1019,7 +1030,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 					Expect(manifestWork).ToNot(BeNil())
 					Expect(volsyncDeployment).NotTo(BeNil())
-					Expect(volsyncDeployment.GetNamespace()).To(Equal("volsync-system"))
+					Expect(volsyncDeployment.GetNamespace()).To(Equal(expectedVolSyncNamespace))
 				})
 
 				Context("When a ManagedClusterAddOn is created with no addonConfig specified (the default)", func() {

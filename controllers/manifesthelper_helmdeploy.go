@@ -103,7 +103,7 @@ func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactor
 	}
 
 	return helmutils.RenderManifestsFromChart(chart, installNamespace,
-		mh.cluster, mh.clusterIsOpenShift, values, genericCodec)
+		mh.cluster, mh.clusterIsOpenShift, values, genericCodec, RHRegistryPullSecretName)
 }
 
 func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values, error) {

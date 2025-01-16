@@ -1,5 +1,5 @@
 # Build the addon controller binary
-FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.22 AS builder
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.23 AS builder
 USER root
 
 WORKDIR /workspace
@@ -25,8 +25,20 @@ RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-
 # Final container
 FROM registry.redhat.io/ubi9/ubi-minimal:latest
 
-RUN microdnf -y --refresh update && \
-    microdnf clean all
+# RUN microdnf -y --refresh update && \
+#     microdnf clean all
+
+LABEL \
+    name="volsync-addon-controller" \
+    com.redhat.component="volsync-addon-controller" \
+    description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
+    operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \
+    io.k8s.description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
+    operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \
+    summary="A controller addon for Red Hat ACM that deploys the VolSync operator \
+    on managed clusters using ManagedClusterAddOn CRs." \
+    io.k8s.display-name="Red Hat Advanced Cluster Management Volsync Addon Controller" \
+    io.openshift.tags="acm volsync-addon-controller"
 
 WORKDIR /
 COPY --from=builder /workspace/controller .

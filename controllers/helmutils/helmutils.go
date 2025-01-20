@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,9 +37,13 @@ var globalKinds = []string{
 	"ClusterRoleBinding",
 }
 
-// key will be stable or dev
+// key will be stable-X.Y (depends on release)
 // value is the loaded *chart.Chart
 var loadedChartsMap sync.Map
+
+// key will be stable-X.Y (depends on release)
+// value is a map containing values for volsync & kube-rbac-proxy image
+var loadedImagesMap sync.Map // Future: get from ACM OPERAND images instead?
 
 // New - only load helm charts directly from embedded dirs
 func InitEmbeddedCharts(embeddedChartsDir string) error {
@@ -55,6 +60,27 @@ func InitEmbeddedCharts(embeddedChartsDir string) error {
 
 	for _, subDir := range subDirs {
 		if subDir.IsDir() {
+			chartKey := subDir.Name()
+
+			// Load image defaults from images.yaml
+			imagesYamlPath := filepath.Join(embeddedChartsDir, subDir.Name(), "images.yaml")
+			imagesYamlFile, err := os.ReadFile(imagesYamlPath)
+			if err != nil {
+				klog.ErrorS(err, "unable to load images.yaml", "imagesYamlPath", imagesYamlPath)
+				return err
+			}
+
+			var vsDefaultImages map[string]string
+			err = yaml.Unmarshal(imagesYamlFile, &vsDefaultImages)
+			if err != nil {
+				klog.ErrorS(err, "unable to parse images.yaml", "imagesYamlPath", imagesYamlPath)
+				return err
+			}
+			klog.InfoS("Default operand images", "chartKey", chartKey, "vsDefaultImages", vsDefaultImages)
+			// Save default image values for this chartKey
+			loadedImagesMap.Store(chartKey, vsDefaultImages)
+
+			// Load the helm charts from the volsnc dir
 			chartsPath := filepath.Join(embeddedChartsDir, subDir.Name(), "volsync")
 			klog.InfoS("Loading charts", "chartsPath", chartsPath)
 
@@ -63,7 +89,6 @@ func InitEmbeddedCharts(embeddedChartsDir string) error {
 				klog.ErrorS(err, "Error loading chart", "chartsPath", chartsPath)
 				return err
 			}
-			chartKey := subDir.Name()
 			klog.InfoS("Successfully loaded chart", "chartKey", chartKey, "Name", chart.Name(), "AppVersion", chart.AppVersion())
 
 			// Save chart into memory
@@ -72,6 +97,14 @@ func InitEmbeddedCharts(embeddedChartsDir string) error {
 	}
 
 	return nil
+}
+
+func GetVolSyncDefaultImagesMap(chartKey string) (map[string]string, error) {
+	vsDefaultImages, ok := loadedImagesMap.Load(chartKey)
+	if !ok {
+		return nil, fmt.Errorf("No default operand images have been initialized for %s", chartKey)
+	}
+	return vsDefaultImages.(map[string]string), nil
 }
 
 func GetEmbeddedChart(chartKey string) (*chart.Chart, error) {

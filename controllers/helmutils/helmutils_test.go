@@ -38,6 +38,28 @@ var _ = Describe("Helmutils", func() {
 		})
 	})
 
+	Context("Load embedded helm charts", func() {
+		// see the test suite BeforeSuite() for initing the volsync default img values with our test charts
+		It("Should have default volsync operand images loaded for stable-X.Y", func() {
+			defaultImageMap, err := helmutils.GetVolSyncDefaultImagesMap(controllers.DefaultHelmChartKey)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(defaultImageMap).NotTo(BeNil())
+
+			vsImage, ok := defaultImageMap[controllers.EnvVarVolSyncImageName]
+			Expect(ok).To(BeTrue())
+			Expect(vsImage).To(ContainSubstring("rhacm2-volsync-rhel"))
+
+			rbacProxyImage, ok := defaultImageMap[controllers.EnvVarRbacProxyImageName]
+			Expect(ok).To(BeTrue())
+			Expect(rbacProxyImage).To(ContainSubstring("ose-kube-rbac-proxy"))
+		})
+
+		It("Should not have other charts loaded", func() {
+			_, err := helmutils.GetEmbeddedChart("nothere")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	Context("Rendering helm charts into objects", func() {
 		var testNamespace string
 		var clusterIsOpenShift bool

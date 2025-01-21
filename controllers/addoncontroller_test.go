@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -28,12 +29,10 @@ import (
 	policyv1beta1 "open-cluster-management.io/config-policy-controller/api/v1beta1"
 
 	"github.com/stolostron/volsync-addon-controller/controllers"
+	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils/helmutilstest"
 )
 
-// These tests are for deployment of VolSync as an OLM subscription
-// This is the old behavior and will not be used by default
-// (Only enabled if annotation is set on the managedclusteraddon)
 var _ = Describe("Addoncontroller - helm deployment tests", func() {
 	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
 
@@ -420,8 +419,8 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 			})
 		})
 
-		Describe("Node Selector/Tolerations tests", func() {
-			Context("When a ManagedClusterAddOn is created with node selectors and tolerations", func() {
+		Describe("AddonDeloyment Config tests (overrides for things like node selector/tolerations/images)", func() {
+			Context("When a ManagedClusterAddOn is created", func() {
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
 				var manifestWork *workv1.ManifestWork
 				//				var operatorSubscription *operatorsv1alpha1.Subscription
@@ -490,6 +489,27 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 				})
 
 				Context("When no addonDeploymentConfig is referenced", func() {
+					It("Should create the deployment in the manifest with default images", func() {
+						rbacProxyImage := volsyncDeployment.Spec.Template.Spec.Containers[0].Image
+						Expect(
+							strings.Contains(rbacProxyImage, "registry.redhat.io") ||
+								strings.Contains(rbacProxyImage, "registry-proxy.engineering.redhat.com"),
+						).To(BeTrue())
+						Expect(rbacProxyImage).To(ContainSubstring("ose-kube-rbac-proxy"))
+
+						volSyncImage := volsyncDeployment.Spec.Template.Spec.Containers[1].Image
+						Expect(
+							strings.Contains(volSyncImage, "registry.redhat.io") ||
+								strings.Contains(volSyncImage, "registry-proxy.engineering.redhat.com"),
+						).To(BeTrue())
+						Expect(volSyncImage).To(ContainSubstring("rhacm2-volsync-rhel"))
+
+						volSyncArgs := volsyncDeployment.Spec.Template.Spec.Containers[1].Args
+
+						// Make sure args are updated to point to the correct image (volsyncImage) for the movers
+						verifyVolSyncDeploymentArgsForMoverImages(volSyncArgs, volSyncImage)
+					})
+
 					It("Should create deployment in the manifestwork with no tolerations or selectors", func() {
 						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(BeNil())
 						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
@@ -510,8 +530,13 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							},
 						}
 
+						customVolSyncImage := "quay.io/fake/stolostron/volsync-container@sha256:123123123123213123213"
+						customRbacProxyImage := "quay.io/fake/stolostron/kube-rbac-proxy-container@sha256:aaa3423432423423432"
+
 						BeforeEach(func() {
-							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+							// Update addonDeploymentConfig with nodePlacment and specific rbacProxy and volsync imgs
+							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement,
+								customRbacProxyImage, customVolSyncImage, nil)
 						})
 						AfterEach(func() {
 							cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
@@ -601,6 +626,16 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 							Expect(volsyncDeploymentReloaded.Spec.Template.Spec.NodeSelector).To(Equal(nodePlacement.NodeSelector))
 							Expect(volsyncDeploymentReloaded.Spec.Template.Spec.Tolerations).To(Equal(nodePlacement.Tolerations))
+
+							// Now also check the images were updated correctly
+							rbacProxyImage := volsyncDeploymentReloaded.Spec.Template.Spec.Containers[0].Image
+							Expect(rbacProxyImage).To(Equal(customRbacProxyImage))
+							volSyncImage := volsyncDeploymentReloaded.Spec.Template.Spec.Containers[1].Image
+							Expect(volSyncImage).To(Equal(customVolSyncImage))
+
+							volSyncArgs := volsyncDeploymentReloaded.Spec.Template.Spec.Containers[1].Args
+							// Make sure args are updated to point to the correct image (volsyncImage) for the movers
+							verifyVolSyncDeploymentArgsForMoverImages(volSyncArgs, volSyncImage)
 						})
 					})
 				})
@@ -614,7 +649,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -689,7 +724,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -773,7 +808,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -836,6 +871,199 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						Expect(volsyncDeployment.Spec.Template.Spec.Tolerations).To(Equal(nodePlacement.Tolerations))
 					})
 				})
+
+				Context("When the addonDeployment config has registry overrides", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					var customRegistries []addonv1alpha1.ImageMirror
+
+					var defaultVolSyncImg string
+					var defaultVolSyncRbacProxyImg string
+
+					BeforeEach(func() {
+						// As the actual image locations may change (particularly after we release), look it up
+						// to use for this test
+						defaultImagesMap, err := helmutils.GetVolSyncDefaultImagesMap(controllers.DefaultHelmChartKey)
+						Expect(err).NotTo(HaveOccurred())
+
+						var ok bool
+						defaultVolSyncImg, ok = defaultImagesMap[controllers.EnvVarVolSyncImageName]
+						Expect(ok).To(BeTrue())
+						defaultVolSyncRbacProxyImg, ok = defaultImagesMap[controllers.EnvVarRbacProxyImageName]
+						Expect(ok).To(BeTrue())
+
+						origVSSource := strings.Split(defaultVolSyncImg, "/rhacm2-volsync-rhel")
+						Expect(len(origVSSource)).To(Equal(2))
+						origProxySource := strings.Split(defaultVolSyncRbacProxyImg, "/ose-kube-rbac-proxy")
+						Expect(len(origProxySource)).To(Equal(2))
+
+						customRegistries = []addonv1alpha1.ImageMirror{
+							{
+								Source: origVSSource[0],
+								Mirror: "redhat.io/real/acm",
+							},
+							{
+								Source: origProxySource[0],
+								Mirror: "redhat.io/real/acm",
+							},
+						}
+						logger.Info("setting customRegistries in addondeploymentconfig",
+							"customRegistries", customRegistries)
+
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", customRegistries)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// Find the deployment in the manifestwork
+							var err error
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+								manifestWork, genericCodec)
+							if err != nil {
+								return false
+							}
+
+							// If the deployment container images are set it's been updated properly
+							return len(volsyncDeployment.Spec.Template.Spec.Containers) == 2 &&
+								strings.HasPrefix(volsyncDeployment.Spec.Template.Spec.Containers[0].Image, "redhat.io/real/acm") &&
+								strings.HasPrefix(volsyncDeployment.Spec.Template.Spec.Containers[1].Image, "redhat.io/real/acm")
+						}, timeout, interval).Should(BeTrue())
+					})
+
+					It("Should create the deployment in the mw with the default images using our custom mirror as repo", func() {
+						Expect(volsyncDeployment.Spec.Template.Spec.Containers[0].Image).To(ContainSubstring("redhat.io/real/acm"))
+						Expect(volsyncDeployment.Spec.Template.Spec.Containers[0].Image).To(ContainSubstring("/ose-kube-rbac-proxy"))
+
+						Expect(volsyncDeployment.Spec.Template.Spec.Containers[1].Image).To(ContainSubstring("redhat.io/real/acm"))
+						Expect(volsyncDeployment.Spec.Template.Spec.Containers[1].Image).To(ContainSubstring("/rhacm2-volsync-rhel"))
+					})
+				})
+
+				Context("When the addonDeployment config has registry overrides and image (via env var) overrides", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					var customRegistries []addonv1alpha1.ImageMirror
+
+					BeforeEach(func() {
+						customVolSyncImage := "quay.io/testing/stolostron/volsync-container:test-build"
+						customVolSyncRbacProxyImage := "quay.io/testing/stolostron/kube-rbac-proxy-container:test-build"
+
+						// Let's set custom registries to override the repos in the above custom images
+						customRegistries = []addonv1alpha1.ImageMirror{
+							{
+								Source: "quay.io/testing/stolostron",
+								Mirror: "mytest.io/somepath/vs",
+							},
+						}
+						logger.Info("setting customRegistries in addondeploymentconfig",
+							"customRegistries", customRegistries)
+
+						addonDeploymentConfig = createAddonDeploymentConfig(nil,
+							customVolSyncRbacProxyImage, customVolSyncImage, customRegistries)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// Find the deployment in the manifestwork
+							var err error
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+								manifestWork, genericCodec)
+							if err != nil {
+								return false
+							}
+
+							// If the deployment container images are set it's been updated properly
+							return len(volsyncDeployment.Spec.Template.Spec.Containers) == 2 &&
+								strings.HasPrefix(volsyncDeployment.Spec.Template.Spec.Containers[0].Image, "mytest.io/somepath/vs") &&
+								strings.HasPrefix(volsyncDeployment.Spec.Template.Spec.Containers[1].Image, "mytest.io/somepath/vs")
+						}, timeout, interval).Should(BeTrue())
+					})
+
+					It("Should create the deployment in the mw with custom images but using our custom mirror as repo", func() {
+						// Images should be our custom ones, but the source should be replaced with our mirror
+						Expect(volsyncDeployment.Spec.Template.Spec.Containers[0].Image).To(
+							Equal("mytest.io/somepath/vs/kube-rbac-proxy-container:test-build"))
+						Expect(volsyncDeployment.Spec.Template.Spec.Containers[1].Image).To(
+							Equal("mytest.io/somepath/vs/volsync-container:test-build"))
+					})
+				})
+
 			})
 
 			Context("When the volsync ClusterManagementAddOn has a default deployment config w/ node "+
@@ -871,7 +1099,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 
-					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement)
+					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil)
 
 					// Update the ClusterManagementAddOn before we create it to set a default deployment config
 					clusterManagementAddon.Spec.SupportedConfigs[0].DefaultConfig = &addonv1alpha1.ConfigReferent{
@@ -1072,7 +1300,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1630,7 +1858,10 @@ func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
 	return mrStatus
 }
 
-func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement) *addonv1alpha1.AddOnDeploymentConfig {
+func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement,
+	rbacProxyImage string,
+	volSyncImage string,
+	registries []addonv1alpha1.ImageMirror) *addonv1alpha1.AddOnDeploymentConfig {
 	// Create a ns to host the addondeploymentconfig
 	// These can be accessed globally, so could be in the mgd cluster namespace
 	// but, creating a new ns for each one to keep the tests simple
@@ -1651,6 +1882,29 @@ func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement) *ad
 			NodePlacement: nodePlacement,
 		},
 	}
+
+	// Set rbac proxy image as env var override
+	if rbacProxyImage != "" {
+		customAddonDeploymentConfig.Spec.CustomizedVariables = append(customAddonDeploymentConfig.Spec.CustomizedVariables,
+			addonv1alpha1.CustomizedVariable{
+				Name:  controllers.EnvVarRbacProxyImageName,
+				Value: rbacProxyImage,
+			})
+	}
+
+	// Set volsync image as env var override
+	if volSyncImage != "" {
+		customAddonDeploymentConfig.Spec.CustomizedVariables = append(customAddonDeploymentConfig.Spec.CustomizedVariables,
+			addonv1alpha1.CustomizedVariable{
+				Name:  controllers.EnvVarVolSyncImageName,
+				Value: volSyncImage,
+			})
+	}
+
+	if registries != nil {
+		customAddonDeploymentConfig.Spec.Registries = registries
+	}
+
 	Expect(testK8sClient.Create(testCtx, customAddonDeploymentConfig)).To(Succeed())
 
 	return customAddonDeploymentConfig
@@ -1735,4 +1989,33 @@ func getVolSyncDeploymentFromManifestWork(manifestWork *workv1.ManifestWork,
 	}
 
 	return volsyncDeployment, nil
+}
+
+// Verifies that the arguments for the volsync deployment are set for all movers and point to the expected
+// image <expectedVolSyncImage>
+func verifyVolSyncDeploymentArgsForMoverImages(volSyncArgs []string, expectedVolSyncImage string) {
+	var rcloneContainerImage, resticContainerImage, rsyncContainerImage,
+		rsyncTLSContainerImage, syncthingContainerImage string
+	for _, arg := range volSyncArgs {
+		argSplit := strings.Split(arg, "=")
+
+		switch argSplit[0] {
+		case "--rclone-container-image":
+			rcloneContainerImage = argSplit[1]
+		case "--restic-container-image":
+			resticContainerImage = argSplit[1]
+		case "--rsync-container-image":
+			rsyncContainerImage = argSplit[1]
+		case "--rsync-tls-container-image":
+			rsyncTLSContainerImage = argSplit[1]
+		case "--syncthing-container-image":
+			syncthingContainerImage = argSplit[1]
+		}
+	}
+
+	Expect(rcloneContainerImage).To(Equal(expectedVolSyncImage))
+	Expect(resticContainerImage).To(Equal(expectedVolSyncImage))
+	Expect(rsyncContainerImage).To(Equal(expectedVolSyncImage))
+	Expect(rsyncTLSContainerImage).To(Equal(expectedVolSyncImage))
+	Expect(syncthingContainerImage).To(Equal(expectedVolSyncImage))
 }

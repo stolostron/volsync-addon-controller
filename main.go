@@ -33,9 +33,8 @@ func main() {
 	command := newCommand()
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
 
-	embeddedHelmChartsDir := os.Getenv("EMBEDDED_CHARTS_DIR")
 	// Load local embedded helm charts - will be read in as a charts object
-	err := helmutils.InitEmbeddedCharts(embeddedHelmChartsDir)
+	err := helmutils.InitEmbeddedCharts("")
 	if err != nil {
 		fmt.Printf("error loading embedded chart: %s", err)
 		os.Exit(1)

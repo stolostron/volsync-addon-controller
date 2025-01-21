@@ -119,12 +119,22 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 		//
 		InstallNamespace string
 	}{
+		// These are our default values
 		OperatorName:       operatorName,
 		ManagedClusterName: mh.cluster.GetName(),
 		InstallNamespace:   mh.getInstallNamespace(),
 	}
 
 	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
+
+	// Add our default volsync images to our initial values (the OPERAND_IMAGES)
+	vsImagesMap, err := helmutils.GetVolSyncDefaultImagesMap(mh.getChartKey())
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range vsImagesMap {
+		manifestConfigValues[k] = v
+	}
 
 	// Get values from addonDeploymentConfig
 	deploymentConfigValues, err := addonfactory.GetAddOnDeploymentConfigValues(
@@ -138,18 +148,46 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	// Merge manifestConfig and deploymentConfigValues
 	mergedValues := addonfactory.MergeValues(manifestConfigValues, deploymentConfigValues)
 
-	// Convert any values into the value format that VolSync expects in its charts
-	mh.updateChartValuesForVolSync(mergedValues)
+	// volSyncImage/volsyncRbacProxyImage will be the images set either by defaults,
+	// or overridden in the addondeploymentconfig
+	volSyncImage := mh.getVolSyncImageFromValues(mergedValues)
+	volSyncRbacProxyImage := mh.getVolSyncRbacProxyImageFromValues(mergedValues)
 
-	return mergedValues, nil
+	// Pass through again to see if we need to override image paths from the addondeploymentconfig
+	// (Use ToImageOverrideValuesFunc to allow for overriding the image registry source/mirror in
+	// addondeploymentconfig.spec.registries)
+	deploymentConfigValues2ImageOverrides, err := addonfactory.GetAddOnDeploymentConfigValues(
+		addonframeworkutils.NewAddOnDeploymentConfigGetter(mh.addonClient),
+		addonfactory.ToImageOverrideValuesFunc(EnvVarVolSyncImageName, volSyncImage),
+		addonfactory.ToImageOverrideValuesFunc(EnvVarRbacProxyImageName, volSyncRbacProxyImage),
+	)(mh.cluster, mh.addon)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge previously mergedValues with deploymentConfigValues2
+	mergedValuesFinal := addonfactory.MergeValues(mergedValues, deploymentConfigValues2ImageOverrides)
+
+	// Convert any values into the value format that VolSync expects in its charts
+	mh.updateChartValuesForVolSync(mergedValuesFinal)
+
+	return mergedValuesFinal, nil
 }
 
 func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
 	return DefaultHelmInstallNamespace
 }
 
+func (mh *manifestHelperHelmDeploy) getVolSyncImageFromValues(values addonfactory.Values) string {
+	return values[EnvVarVolSyncImageName].(string)
+}
+
+func (mh *manifestHelperHelmDeploy) getVolSyncRbacProxyImageFromValues(values addonfactory.Values) string {
+	return values[EnvVarRbacProxyImageName].(string)
+}
+
 func (mh *manifestHelperHelmDeploy) getChartKey() string {
-	// Which chart to deploy - will default to "stable"
+	// Which chart to deploy - will default to "stable-X.Y"
 	// but can override with annotation to pick from a different dir
 	// (that dir will need to be bundled in /helmcharts/<dir> however)
 	chartKey := DefaultHelmChartKey
@@ -169,6 +207,40 @@ func (mh *manifestHelperHelmDeploy) getChartKey() string {
 func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfactory.Values) {
 	convertValuesMapKey(values, "Tolerations", "tolerations")
 	convertValuesMapKey(values, "NodeSelector", "nodeSelector")
+
+	// Convert env vars indicating images we want to use to the values expected in the volsync
+	// helm chart values.yaml
+	// This allows us to override image values by passing in env vars in an AddonDeploymentConfig
+	volSyncImageVal, ok := values[EnvVarVolSyncImageName]
+	if ok {
+		volSyncImage, ok := volSyncImageVal.(string)
+		if ok && volSyncImage != "" {
+			values["image"] = map[string]string{
+				// the base image also requires a pull policy - if we override image we need to also set it
+				"pullPolicy": "IfNotPresent",
+				"image":      volSyncImage,
+			}
+
+			vsImgAsMap := map[string]string{
+				"image": volSyncImage,
+			}
+			values["rclone"] = vsImgAsMap
+			values["restic"] = vsImgAsMap
+			values["rsync"] = vsImgAsMap
+			values["rsync-tls"] = vsImgAsMap
+			values["syncthing"] = vsImgAsMap
+		}
+	}
+
+	volSyncRbacProxyImageVal, ok := values[EnvVarRbacProxyImageName]
+	if ok {
+		volSyncRbacProxyImage, ok := volSyncRbacProxyImageVal.(string)
+		if ok && volSyncRbacProxyImage != "" {
+			values["kube-rbac-proxy"] = map[string]string{
+				"image": volSyncRbacProxyImage,
+			}
+		}
+	}
 }
 
 // If oldKey exists in map, copy the value to newKey and remove oldKey

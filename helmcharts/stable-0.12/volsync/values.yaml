@@ -7,34 +7,36 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
   # Directly specifies the SHA hash of the container image to deploy
-  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+  image: ""
 rclone:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+  image: ""
 restic:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+  image: ""
 rsync:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+  image: ""
 rsync-tls:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+  image: ""
 syncthing:
   repository: quay.io/backube/volsync
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  image: "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+  image: ""
 kube-rbac-proxy:
-  image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.15
+  repository: quay.io/brancz/kube-rbac-proxy
+  tag: "v0.18.1"
+  image: ""
 
 manageCRDs: true
 

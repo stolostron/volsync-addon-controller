@@ -22,6 +22,7 @@ import (
 
 var versionFromGit = "0.0.0"
 var commitFromGit = ""
+var embeddedChartsDir = controllers.DefaultEmbeddedChartsDir
 
 func main() {
 	pflag.CommandLine.SetNormalizeFunc(utilflag.WordSepNormalizeFunc)
@@ -34,7 +35,7 @@ func main() {
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
 
 	// Load local embedded helm charts - will be read in as a charts object
-	err := helmutils.InitEmbeddedCharts("")
+	err := helmutils.InitEmbeddedCharts(embeddedChartsDir)
 	if err != nil {
 		fmt.Printf("error loading embedded chart: %s", err)
 		os.Exit(1)

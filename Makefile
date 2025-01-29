@@ -82,3 +82,8 @@ $(GINKGO): $(LOCALBIN)
 .PHONY: build
 build:
 	GO111MODULE=on go build -a -o bin/controller -ldflags $(GO_LD_FLAGS) main.go
+
+.PHONY: run
+GO_LD_FLAGS_LOCALRUN = "$(call version-ldflags) -X main.embeddedChartsDir=$(PROJECT_DIR)/helmcharts"
+run:
+	go run -ldflags $(GO_LD_FLAGS_LOCALRUN) . controller --namespace open-cluster-management --kubeconfig $(KUBECONFIG)

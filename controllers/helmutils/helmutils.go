@@ -24,9 +24,8 @@ import (
 )
 
 const (
-	defaultEmbeddedChartsDir = "/helmcharts"
-	crdKind                  = "CustomResourceDefinition"
-	serviceAccountKind       = "ServiceAccount"
+	crdKind            = "CustomResourceDefinition"
+	serviceAccountKind = "ServiceAccount"
 )
 
 // List of kinds of objects in the manifestwork - anything in this list will not have
@@ -48,7 +47,7 @@ var loadedImagesMap sync.Map // Future: get from ACM OPERAND images instead?
 // New - only load helm charts directly from embedded dirs
 func InitEmbeddedCharts(embeddedChartsDir string) error {
 	if embeddedChartsDir == "" {
-		embeddedChartsDir = defaultEmbeddedChartsDir
+		return fmt.Errorf("error loading embedded charts, no dir provided")
 	}
 
 	// Embedded Charts dir contains subdirectories - each subdir should contain 1 chart

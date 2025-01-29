@@ -55,6 +55,8 @@ const (
 	DefaultHelmChartKey         = DefaultChannel // named the same as our operator channel
 	DefaultHelmChartName        = "volsync"
 	DefaultHelmInstallNamespace = "volsync-system"
+
+	DefaultEmbeddedChartsDir = "/helmcharts"
 )
 
 const (

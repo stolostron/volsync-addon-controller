@@ -6,7 +6,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.34.2
 	github.com/openshift/library-go v0.0.0-20241021151851-4c5ecb35c294 // release-4.19
-	github.com/operator-framework/api v0.26.0
+	github.com/operator-framework/api v0.27.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	helm.sh/helm/v3 v3.14.4

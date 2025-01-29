@@ -272,12 +272,12 @@ spec:
 
 ## Installation
 
-To install manually, helm charts are available [here](https://github.com/stolostron/volsync-addon-controller-chart)
+To install manually, helm charts are available [here](https://github.com/stolostron/multiclusterhub-operator/tree/main/pkg/templates/charts/toggle/volsync-controller)
 
 ## Running the controller locally pointing to a remote cluster
 
 If you would like to run the volsync addon controller outside the cluster, execute:
 
 ```shell
-go run . controller --namespace <namesapce> --kubeconfig <path_to_kubeconfig>
+make run
 ```

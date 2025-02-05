@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -136,7 +135,6 @@ func RenderManifestsFromChart(
 	clusterIsOpenShift bool,
 	chartValues map[string]interface{},
 	runtimeDecoder runtime.Decoder,
-	pullSecretForServiceAccount string,
 ) ([]runtime.Object, error) {
 	helmObjs := []runtime.Object{}
 
@@ -234,19 +232,6 @@ func RenderManifestsFromChart(
 			crdAnnotations := templateObj.(metav1.Object).GetAnnotations()
 			crdAnnotations[addonapiv1alpha1.DeletionOrphanAnnotationKey] = ""
 			templateObj.(metav1.Object).SetAnnotations(crdAnnotations)
-		case serviceAccountKind:
-			// Add pull secret to svc account
-			if pullSecretForServiceAccount != "" {
-				svcAccount, ok := templateObj.(*corev1.ServiceAccount)
-				if !ok {
-					svcAcctErr := fmt.Errorf("unable to decode service account resource")
-					klog.Error(svcAcctErr, "Error rendering helm chart")
-					return nil, svcAcctErr
-				}
-				svcAccount.ImagePullSecrets = append(svcAccount.ImagePullSecrets, corev1.LocalObjectReference{
-					Name: pullSecretForServiceAccount,
-				})
-			}
 		}
 
 		helmObjs = append(helmObjs, templateObj)

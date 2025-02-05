@@ -94,7 +94,7 @@ var _ = Describe("Helmutils", func() {
 				}
 
 				renderedObjs, err = helmutils.RenderManifestsFromChart(chart, testNamespace, testCluster, clusterIsOpenShift,
-					chartValues, genericCodec, controllers.RHRegistryPullSecretName)
+					chartValues, genericCodec)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(renderedObjs).NotTo(BeNil())
 			})

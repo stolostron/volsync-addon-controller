@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
@@ -103,9 +104,10 @@ func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactor
 	}
 
 	return helmutils.RenderManifestsFromChart(chart, installNamespace,
-		mh.cluster, mh.clusterIsOpenShift, values, genericCodec, RHRegistryPullSecretName)
+		mh.cluster, mh.clusterIsOpenShift, values, genericCodec)
 }
 
+//nolint:funlen
 func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values, error) {
 	manifestConfig := struct {
 		// OpenShift target cluster parameters - this is the same as the subscription name
@@ -180,6 +182,17 @@ func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
 	return DefaultHelmInstallNamespace
 }
 
+func (mh *manifestHelperHelmDeploy) getImagePullSecrets() []corev1.LocalObjectReference {
+	if mh.clusterIsOpenShift {
+		return nil // No pull secrets needed for openshift
+	}
+	return []corev1.LocalObjectReference{
+		{
+			Name: RHRegistryPullSecretName,
+		},
+	}
+}
+
 func (mh *manifestHelperHelmDeploy) getVolSyncImageFromValues(values addonfactory.Values) string {
 	return values[EnvVarVolSyncImageName].(string)
 }
@@ -242,6 +255,16 @@ func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfact
 				"image": volSyncRbacProxyImage,
 			}
 		}
+	}
+
+	// Pull secrets - setting here because if we run it through addonfactory.StructToValues() like we do
+	// for the manifestConfig, it will convert things like the LocalObjectReference to be "Name" instead of
+	// the proper rendered "name" once it's yaml/json
+	// For image pull secrets we are not allowing overrides atm, so doing this after proecessing all the addonconfig
+	// overrides should be fine
+	imgPullSecrets := mh.getImagePullSecrets()
+	if imgPullSecrets != nil {
+		values["imagePullSecrets"] = imgPullSecrets
 	}
 }
 

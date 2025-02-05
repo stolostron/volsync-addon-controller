@@ -304,12 +304,39 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						Expect(namespaceObj.GetName()).To(Equal(expectedVolSyncNamespace))
 						// Check that special label is set on the namespace to indicate that ACM should copy over the
 						// redhat registry pull secret (allows us to pull volsync images from registry.redhat.io in
-						// volsync-system)
+						// volsync-system) - doing this for both openshift and non-openshift, but not strictly necessary
+						// for openshift
 						nsLabels := namespaceObj.GetLabels()
 						Expect(len(nsLabels)).To(Equal(1))
 						pullSecretCopyLabel, ok := nsLabels["addon.open-cluster-management.io/namespace"]
 						Expect(ok).To(BeTrue())
 						Expect(pullSecretCopyLabel).To(Equal("true"))
+					})
+
+					It("Image Pull secrets should be set correctly on the deployment", func() {
+						vsDeploy := helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
+							expectedVolSyncNamespace, mgdClusterIsOpenShift)
+
+						if mgdClusterIsOpenShift {
+							Expect(len(vsDeploy.Spec.Template.Spec.ImagePullSecrets)).To(Equal(0))
+						} else {
+							Expect(len(vsDeploy.Spec.Template.Spec.ImagePullSecrets)).To(Equal(1))
+
+							Expect(vsDeploy.Spec.Template.Spec.ImagePullSecrets).To(Equal(
+								[]corev1.LocalObjectReference{
+									{
+										Name: controllers.RHRegistryPullSecretName,
+									},
+								}))
+
+							// When we set the pull secrets, the helm chart should also pass in a new arg to volsync
+							// to tell it to copy the secret to mover namespaces when replicating RS/RDs
+							vsControllerContainer := vsDeploy.Spec.Template.Spec.Containers[1]
+							Expect(vsControllerContainer.Name).To(Equal("manager"))
+							Expect(len(vsControllerContainer.Args)).To(Equal(10))
+							Expect(vsControllerContainer.Args[9]).To(Equal(
+								"--mover-image-pull-secrets=" + controllers.RHRegistryPullSecretName))
+						}
 					})
 
 					Context("When the ManagedClusterAddOn spec does not set an installNamespace", func() {

@@ -125,14 +125,14 @@ func GetVolSyncDefaultImagesFromMCH(ctx context.Context,
 	var mchCM *corev1.ConfigMap
 	for i := range mchImageCMList.Items {
 		cm := mchImageCMList.Items[i]
-		_version := cm.Labels["ocm-release-version"]
-		if _version == "" {
+		version := cm.Labels["ocm-release-version"]
+		if version == "" {
 			continue
 		}
 
-		currentVersion, err := semver.NewVersion(_version)
+		currentVersion, err := semver.NewVersion(version)
 		if err != nil {
-			klog.Infof("invalid ocm-release-version %v in MCH configmap: %v", _version, cm.Name)
+			klog.Infof("invalid ocm-release-version %v in MCH configmap: %v", version, cm.Name)
 			continue
 		}
 

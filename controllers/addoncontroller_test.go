@@ -491,18 +491,11 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 				Context("When no addonDeploymentConfig is referenced", func() {
 					It("Should create the deployment in the manifest with default images", func() {
 						rbacProxyImage := volsyncDeployment.Spec.Template.Spec.Containers[0].Image
-						Expect(
-							strings.Contains(rbacProxyImage, "registry.redhat.io") ||
-								strings.Contains(rbacProxyImage, "registry-proxy.engineering.redhat.com"),
-						).To(BeTrue())
-						Expect(rbacProxyImage).To(ContainSubstring("ose-kube-rbac-proxy"))
+						// Should be set to the test image we set at init (in the test suite suite setup)
+						Expect(rbacProxyImage).To(Equal(testDefaultRbacProxyImage))
 
 						volSyncImage := volsyncDeployment.Spec.Template.Spec.Containers[1].Image
-						Expect(
-							strings.Contains(volSyncImage, "registry.redhat.io") ||
-								strings.Contains(volSyncImage, "registry-proxy.engineering.redhat.com"),
-						).To(BeTrue())
-						Expect(volSyncImage).To(ContainSubstring("rhacm2-volsync-rhel"))
+						Expect(volSyncImage).To(Equal(testDefaultVolSyncImage))
 
 						volSyncArgs := volsyncDeployment.Spec.Template.Spec.Containers[1].Args
 

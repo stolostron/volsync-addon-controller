@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
 
@@ -33,13 +34,6 @@ func main() {
 
 	command := newCommand()
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
-
-	// Load local embedded helm charts - will be read in as a charts object
-	err := helmutils.InitEmbeddedCharts(embeddedChartsDir)
-	if err != nil {
-		fmt.Printf("error loading embedded chart: %s", err)
-		os.Exit(1)
-	}
 
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -97,6 +91,26 @@ func newControllerCommand() *cobra.Command {
 }
 
 func runControllers(ctx context.Context, controllerContext *controllercmd.ControllerContext) error {
+	// Find default volsync image references from ACM's MCH image-manifest configmap
+	kubeClient, err := client.New(controllerContext.KubeConfig, client.Options{})
+	if err != nil {
+		fmt.Printf("unable to create kube client: %s", err)
+		return err
+	}
+	podNamespace := os.Getenv("POD_NAMESPACE")
+	volSyncDefaultImagesMap, err := controllers.GetVolSyncDefaultImagesFromMCH(ctx, kubeClient, podNamespace)
+	if err != nil {
+		fmt.Printf("error loading default images from mch: %s", err)
+		return err
+	}
+
+	// Load local embedded helm charts - will be read in as a charts object
+	err = helmutils.InitEmbeddedCharts(embeddedChartsDir, controllers.DefaultHelmChartKey, volSyncDefaultImagesMap)
+	if err != nil {
+		fmt.Printf("error loading embedded chart: %s", err)
+		return err
+	}
+
 	return controllers.StartControllers(ctx, controllerContext.KubeConfig)
 }
 

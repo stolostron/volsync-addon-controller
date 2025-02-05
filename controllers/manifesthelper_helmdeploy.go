@@ -133,7 +133,9 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 		return nil, err
 	}
 	for k, v := range vsImagesMap {
-		manifestConfigValues[k] = v
+		if v != "" {
+			manifestConfigValues[k] = v
+		}
 	}
 
 	// Get values from addonDeploymentConfig

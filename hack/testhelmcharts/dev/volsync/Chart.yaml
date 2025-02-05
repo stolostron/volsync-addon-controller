@@ -1,0 +1,71 @@
+apiVersion: v2
+name: volsync
+type: application
+description: Asynchronous data replication for Kubernetes
+home: https://volsync.readthedocs.io/
+icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+sources:
+  - https://github.com/backube/volsync
+maintainers:
+  - name: John Strunk
+    email: jstrunk@redhat.com
+    url: https://github.com/JohnStrunk
+  - name: Tesshu Flower
+    email: tflower@redhat.com
+    url: https://github.com/tesshuflower
+keywords:
+  - backup
+  - csi
+  - data
+  - disaster recovery
+  - replication
+  - storage
+annotations: # https://artifacthub.io/docs/topics/annotations/helm/
+  # Changelog for current chart & app version
+  # Kinds: added, changed, deprecated, removed, fixed, and security
+  artifacthub.io/changes: |
+    - kind: changed
+      description: Restic updated to v0.17.0
+    - kind: changed
+      description: Syncthing updated to v1.27.12
+    - kind: added
+      description: moverAffinity added to spec to allow for specifying the podAffinity assigned to a VolSync mover pod
+    - kind: added
+      description: cleanupTempPVC option added for direct users to allow for deleting the dynamically provisioned destination PVC after a completed replication.
+    - kind: added
+      description: cleanupCachePVC option for restic to allow for deleting the cache PVC after a completed replication.
+    - kind: added
+      description: enableFileDeletion restic option to allow for restoring to an existing PVC (for example running multiple restores) and delete files that do not exist in the backup being restored.
+  artifacthub.io/crds: |
+    - kind: ReplicationDestination
+      version: v1alpha1
+      name: replicationdestination.volsync.backube
+      displayName: Replication destination
+      description: Defines the destination of a replicated volume
+    - kind: ReplicationSource
+      version: v1alpha1
+      name: replicationsource.volsync.backube
+      displayName: Replication source
+      description: Defines the source of a replicated volume
+  artifacthub.io/license: AGPL-3.0-or-later
+  artifacthub.io/operator: "true"
+  artifacthub.io/operatorCapabilities: Basic Install
+  artifacthub.io/signKey: |
+    fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+    url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+
+# We require v1 CSI snapshots (1.20+)
+# Adding "-0" at the end of the version string permits pre-release kube versions
+# to match. See https://github.com/helm/helm/issues/6190
+kubeVersion: "^1.20.0-0"
+
+# This is the chart version. This version number should be incremented each time
+# you make changes to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: "0.13.0"
+
+# This is the version number of the application being deployed. This version
+# number should be incremented each time you make changes to the application.
+# Versions are not expected to follow Semantic Versioning. They should reflect
+# the version the application is using. It is recommended to use it with quotes.
+appVersion: "0.13.0"

@@ -3,4 +3,6 @@ kind: Namespace
 metadata:
   name: {{ .InstallNamespace }}
   labels:
+    # This label tells the addonsecretcontroller to copy the open-cluster-management-image-pull-credentials
+    # pull request secret to the namespace on the mgd cluster
     "addon.open-cluster-management.io/namespace": "true"

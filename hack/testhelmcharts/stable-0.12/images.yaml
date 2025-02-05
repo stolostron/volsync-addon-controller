@@ -1,0 +1,2 @@
+"OPERAND_IMAGE_VOLSYNC": "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949" # v0.12.0-4
+"OPERAND_IMAGE_OSE_KUBE_RBAC_PROXY": "registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9:v4.17"

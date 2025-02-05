@@ -39,6 +39,9 @@ func TestUtils(t *testing.T) {
 	RunSpecs(t, "HelmUtils Suite")
 }
 
+const testDefaultHelmChartKey = "dev"
+const testOtherHelmChartKey = "stable-0.12"
+
 var _ = BeforeSuite(func() {
 	klog.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
@@ -46,10 +49,10 @@ var _ = BeforeSuite(func() {
 	wd, err := os.Getwd() // This should be our helmutils pkg dir
 	Expect(err).NotTo(HaveOccurred())
 	// Charts located in /helmcharts
-	testChartsDir := filepath.Join(wd, "..", "..", "helmcharts")
+	testChartsDir := filepath.Join(wd, "..", "..", "hack", "testhelmcharts")
 
 	klog.InfoS("Loading charts", "testChartsDir", testChartsDir)
 	// Load our test charts (these charts in testcharts are for test only and different from
 	// the charts that we'll bundle with the actual controller).
-	Expect(helmutils.InitEmbeddedCharts(testChartsDir)).To(Succeed())
+	Expect(helmutils.InitEmbeddedCharts(testChartsDir, testDefaultHelmChartKey, nil)).To(Succeed())
 })

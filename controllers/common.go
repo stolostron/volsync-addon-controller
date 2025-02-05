@@ -2,13 +2,18 @@ package controllers
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/metadata/metadatainformer"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
@@ -99,4 +104,65 @@ func startAdditionalControllers(ctx context.Context,
 	go addonInstallByLabelController.Run(ctx, 1)
 
 	return nil
+}
+
+//nolint:funlen
+func GetVolSyncDefaultImagesFromMCH(ctx context.Context,
+	kubeClient client.Client, mchNamespace string) (map[string]string, error) {
+	listOptions := []client.ListOption{
+		client.MatchingLabels{"ocm-configmap-type": "image-manifest"},
+		client.InNamespace(mchNamespace),
+	}
+
+	mchImageCMList := &corev1.ConfigMapList{}
+	err := kubeClient.List(ctx, mchImageCMList, listOptions...)
+	if err != nil {
+		klog.ErrorS(err, "failed to get configmap for MCH images")
+		return nil, err
+	}
+
+	var newestVersion *semver.Version
+	var mchCM *corev1.ConfigMap
+	for i := range mchImageCMList.Items {
+		cm := mchImageCMList.Items[i]
+		_version := cm.Labels["ocm-release-version"]
+		if _version == "" {
+			continue
+		}
+
+		currentVersion, err := semver.NewVersion(_version)
+		if err != nil {
+			klog.Infof("invalid ocm-release-version %v in MCH configmap: %v", _version, cm.Name)
+			continue
+		}
+
+		// Find the latest version of the configmap
+		if newestVersion == nil || newestVersion.LessThan(currentVersion) {
+			newestVersion = currentVersion
+			mchCM = &cm
+		}
+	}
+
+	volSyncDefaultImageMap := map[string]string{}
+
+	if mchCM == nil {
+		klog.Info("No MCH image-manifest configmap found")
+	} else {
+		klog.InfoS("MCH image-manifest configmap", "name", mchCM.Name)
+		// Looking for 2 images, volsync image and the ose-kube-rbac-proxy img
+		// Keys in the configmap will be the same as the env vars, but lowercase and without OPERAND_IMAGE_ prefix
+		volSyncImageKey := strings.ToLower(strings.Replace(EnvVarVolSyncImageName, "OPERAND_IMAGE_", "", 1))
+		rbacProxyImageKey := strings.ToLower(strings.Replace(EnvVarRbacProxyImageName, "OPERAND_IMAGE_", "", 1))
+
+		volSyncImage := mchCM.Data[volSyncImageKey]
+		if volSyncImage != "" {
+			volSyncDefaultImageMap[EnvVarVolSyncImageName] = volSyncImage
+		}
+		rbacProxyImage := mchCM.Data[rbacProxyImageKey]
+		if rbacProxyImage != "" {
+			volSyncDefaultImageMap[EnvVarRbacProxyImageName] = rbacProxyImage
+		}
+	}
+
+	return volSyncDefaultImageMap, nil
 }

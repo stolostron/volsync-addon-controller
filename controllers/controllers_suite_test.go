@@ -32,6 +32,10 @@ var testCtx context.Context
 var cancel context.CancelFunc
 var testK8sClient client.Client
 
+//nolint:lll
+const testDefaultVolSyncImage = "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949"
+const testDefaultRbacProxyImage = "registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9:v4.17"
+
 const (
 	maxWait  = "60s"
 	timeout  = "10s"
@@ -58,9 +62,15 @@ var _ = BeforeSuite(func() {
 	testChartsDir := filepath.Join(wd, "..", "helmcharts")
 
 	klog.InfoS("Loading charts", "testChartsDir", testChartsDir)
-	// Load our test charts (these charts in testcharts are for test only and different from
-	// the charts that we'll bundle with the actual controller).
-	Expect(helmutils.InitEmbeddedCharts(testChartsDir)).To(Succeed())
+	// Load the charts (normally done in main)
+	// Set the default images to our test ones (in real env they will be
+	// loaded from the MCH image-manifests configmap)
+	testDefaultImageMap := map[string]string{
+		controllers.EnvVarVolSyncImageName:   testDefaultVolSyncImage,
+		controllers.EnvVarRbacProxyImageName: testDefaultRbacProxyImage,
+	}
+	Expect(helmutils.InitEmbeddedCharts(testChartsDir,
+		controllers.DefaultHelmChartKey, testDefaultImageMap)).To(Succeed())
 
 	// Startup testenv
 	testEnv = &envtest.Environment{

@@ -86,4 +86,4 @@ build:
 .PHONY: run
 GO_LD_FLAGS_LOCALRUN = "$(call version-ldflags) -X main.embeddedChartsDir=$(PROJECT_DIR)/helmcharts"
 run:
-	go run -ldflags $(GO_LD_FLAGS_LOCALRUN) . controller --namespace open-cluster-management --kubeconfig $(KUBECONFIG)
+	POD_NAMESPACE=open-cluster-management go run -ldflags $(GO_LD_FLAGS_LOCALRUN) . controller --namespace open-cluster-management --kubeconfig $(KUBECONFIG)

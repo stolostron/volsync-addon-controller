@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
@@ -66,7 +67,7 @@ func newCommand() *cobra.Command {
 
 func newControllerCommand() *cobra.Command {
 	cmdConfig := controllercmd.
-		NewControllerCommandConfig("volsync-addon-controller", getVersion(), runControllers)
+		NewControllerCommandConfig("volsync-addon-controller", getVersion(), runControllers, clock.RealClock{})
 	cmd := cmdConfig.NewCommand()
 	cmd.Use = "controller"
 	cmd.Short = "Start the volsync addon controller"

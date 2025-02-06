@@ -103,9 +103,10 @@ func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactor
 	}
 
 	return helmutils.RenderManifestsFromChart(chart, installNamespace,
-		mh.cluster, mh.clusterIsOpenShift, values, genericCodec, RHRegistryPullSecretName)
+		mh.cluster, mh.clusterIsOpenShift, values, genericCodec)
 }
 
+//nolint:funlen
 func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values, error) {
 	manifestConfig := struct {
 		// OpenShift target cluster parameters - this is the same as the subscription name
@@ -118,11 +119,13 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 		// Helm based install parameters here
 		//
 		InstallNamespace string
+		ImagePullSecrets []map[string]string `structs:"imagePullSecrets"` // values.yaml expects lower case "imagePullSecrets"
 	}{
 		// These are our default values
 		OperatorName:       operatorName,
 		ManagedClusterName: mh.cluster.GetName(),
 		InstallNamespace:   mh.getInstallNamespace(),
+		ImagePullSecrets:   mh.getImagePullSecrets(),
 	}
 
 	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
@@ -178,6 +181,21 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 
 func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
 	return DefaultHelmInstallNamespace
+}
+
+// Image pull secrets - we will set the "open-cluster-management-image-pull-credentials" secret copied from hub
+// to the volsync-system ns on the managed cluster an image pull secret (for non-OpenShift clusters only)
+// For image pull secrets using a slice of maps instead of []LocalObjectReference since there seem to be
+// problems rendering it back and forth to/from yaml - represent as a map like we'd see directly in the values.yaml
+func (mh *manifestHelperHelmDeploy) getImagePullSecrets() []map[string]string {
+	if mh.clusterIsOpenShift {
+		return nil // No pull secrets needed for openshift
+	}
+	return []map[string]string{
+		{
+			"name": RHRegistryPullSecretName,
+		},
+	}
 }
 
 func (mh *manifestHelperHelmDeploy) getVolSyncImageFromValues(values addonfactory.Values) string {

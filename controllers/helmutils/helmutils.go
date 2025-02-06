@@ -82,7 +82,8 @@ func InitEmbeddedCharts(embeddedChartsDir string, defaultChartKey string, defaul
 			// or from an images.yaml)
 			if chartKey == defaultChartKey && len(defaultImages) > 0 {
 				// Save default image values for the default chartKey
-				klog.InfoS("Default operand images", "chartKey", chartKey, "vsDefaultImages", defaultImages)
+				klog.InfoS("Default operand images (from mch configmap defaults)",
+					"chartKey", chartKey, "vsDefaultImages", defaultImages)
 				loadedImagesMap.Store(chartKey, defaultImages)
 			} else {
 				// Load image defaults from images.yaml for subdirs that aren't the default
@@ -100,7 +101,8 @@ func InitEmbeddedCharts(embeddedChartsDir string, defaultChartKey string, defaul
 					klog.ErrorS(err, "unable to parse images.yaml", "imagesYamlPath", imagesYamlPath)
 					return err
 				}
-				klog.InfoS("Default operand images", "chartKey", chartKey, "vsDefaultImages", vsDefaultImages)
+				klog.InfoS("Default operand images (from images.yaml)",
+					"chartKey", chartKey, "vsDefaultImages", vsDefaultImages)
 
 				// Save default image values for this chartKey
 				loadedImagesMap.Store(chartKey, vsDefaultImages)

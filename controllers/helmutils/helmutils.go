@@ -174,13 +174,13 @@ func RenderManifestsFromChart(
 
 	renderedChartValues, err := chartutil.ToRenderValues(chart, chartValues, releaseOptions, capabilities)
 	if err != nil {
-		klog.Error(err, "Unable to render values for chart", "chart.Name()", chart.Name())
+		klog.ErrorS(err, "Unable to render values for chart", "chart.Name()", chart.Name())
 		return nil, err
 	}
 
 	templates, err := helmEngine.Render(chart, renderedChartValues)
 	if err != nil {
-		klog.Error(err, "Unable to render chart", "chart.Name()", chart.Name())
+		klog.ErrorS(err, "Unable to render chart", "chart.Name()", chart.Name())
 		return nil, err
 	}
 
@@ -207,13 +207,13 @@ func RenderManifestsFromChart(
 
 		templateObj, gvk, err := runtimeDecoder.Decode([]byte(templateData), nil, nil)
 		if err != nil {
-			klog.Error(err, "Error decoding rendered template", "fileName", fileName)
+			klog.ErrorS(err, "Error decoding rendered template", "fileName", fileName)
 			return nil, err
 		}
 
 		if gvk == nil {
 			gvkErr := fmt.Errorf("no gvk for template")
-			klog.Error(gvkErr, "Error decoding gvk from rendered template", "fileName", fileName)
+			klog.ErrorS(gvkErr, "Error decoding gvk from rendered template", "fileName", fileName)
 			return nil, gvkErr
 		}
 

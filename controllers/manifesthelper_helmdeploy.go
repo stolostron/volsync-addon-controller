@@ -3,7 +3,6 @@ package controllers
 import (
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
@@ -120,11 +119,13 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 		// Helm based install parameters here
 		//
 		InstallNamespace string
+		ImagePullSecrets []map[string]string `structs:"imagePullSecrets"` // values.yaml expects lower case "imagePullSecrets"
 	}{
 		// These are our default values
 		OperatorName:       operatorName,
 		ManagedClusterName: mh.cluster.GetName(),
 		InstallNamespace:   mh.getInstallNamespace(),
+		ImagePullSecrets:   mh.getImagePullSecrets(),
 	}
 
 	manifestConfigValues := addonfactory.StructToValues(manifestConfig)
@@ -182,13 +183,17 @@ func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
 	return DefaultHelmInstallNamespace
 }
 
-func (mh *manifestHelperHelmDeploy) getImagePullSecrets() []corev1.LocalObjectReference {
+// Image pull secrets - we will set the "open-cluster-management-image-pull-credentials" secret copied from hub
+// to the volsync-system ns on the managed cluster an image pull secret (for non-OpenShift clusters only)
+// For image pull secrets using a slice of maps instead of []LocalObjectReference since there seem to be
+// problems rendering it back and forth to/from yaml - represent as a map like we'd see directly in the values.yaml
+func (mh *manifestHelperHelmDeploy) getImagePullSecrets() []map[string]string {
 	if mh.clusterIsOpenShift {
 		return nil // No pull secrets needed for openshift
 	}
-	return []corev1.LocalObjectReference{
+	return []map[string]string{
 		{
-			Name: RHRegistryPullSecretName,
+			"name": RHRegistryPullSecretName,
 		},
 	}
 }
@@ -255,16 +260,6 @@ func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfact
 				"image": volSyncRbacProxyImage,
 			}
 		}
-	}
-
-	// Pull secrets - setting here because if we run it through addonfactory.StructToValues() like we do
-	// for the manifestConfig, it will convert things like the LocalObjectReference to be "Name" instead of
-	// the proper rendered "name" once it's yaml/json
-	// For image pull secrets we are not allowing overrides atm, so doing this after proecessing all the addonconfig
-	// overrides should be fine
-	imgPullSecrets := mh.getImagePullSecrets()
-	if imgPullSecrets != nil {
-		values["imagePullSecrets"] = imgPullSecrets
 	}
 }
 

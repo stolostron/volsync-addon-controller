@@ -18,6 +18,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/stolostron/volsync-addon-controller/controllers"
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
 )
 
@@ -39,8 +40,8 @@ func TestUtils(t *testing.T) {
 	RunSpecs(t, "HelmUtils Suite")
 }
 
-const testDefaultHelmChartKey = "dev"
-const testOtherHelmChartKey = "stable-0.12"
+const testDefaultHelmChartKey = controllers.DefaultHelmChartKey
+const testOtherHelmChartKey = "dev"
 
 var _ = BeforeSuite(func() {
 	klog.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))

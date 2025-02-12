@@ -48,7 +48,6 @@ var loadedImagesMap sync.Map
 
 // New - only load helm charts directly from embedded dirs
 func InitEmbeddedCharts(embeddedChartsDir string, defaultChartKey string, defaultImages map[string]string) error {
-	//func InitEmbeddedCharts(embeddedChartsDir string) error {
 	if embeddedChartsDir == "" {
 		return fmt.Errorf("error loading embedded charts, no dir provided")
 	}
@@ -61,52 +60,50 @@ func InitEmbeddedCharts(embeddedChartsDir string, defaultChartKey string, defaul
 	}
 
 	for _, subDir := range subDirs {
-		if subDir.IsDir() {
-			chartKey := subDir.Name()
+		chartKey := subDir.Name()
 
-			// Load the helm charts from the volsnc dir
-			chartsPath := filepath.Join(embeddedChartsDir, chartKey, "volsync")
-			klog.InfoS("Loading charts", "chartsPath", chartsPath)
+		// Load the helm charts from the volsnc dir
+		chartsPath := filepath.Join(embeddedChartsDir, chartKey, "volsync")
+		klog.InfoS("Loading charts", "chartsPath", chartsPath)
 
-			chart, err := loader.Load(chartsPath)
+		chart, err := loader.Load(chartsPath)
+		if err != nil {
+			klog.ErrorS(err, "Error loading chart", "chartsPath", chartsPath)
+			return err
+		}
+		klog.InfoS("Successfully loaded chart", "chartKey", chartKey, "Name", chart.Name(), "AppVersion", chart.AppVersion())
+
+		// Save chart into memory
+		loadedChartsMap.Store(chartKey, chart)
+
+		// Now look to see if we need to override images (either from defaults passed in
+		// or from an images.yaml)
+		if chartKey == defaultChartKey && len(defaultImages) > 0 {
+			// Save default image values for the default chartKey
+			klog.InfoS("Default operand images (from mch configmap defaults)",
+				"chartKey", chartKey, "vsDefaultImages", defaultImages)
+			loadedImagesMap.Store(chartKey, defaultImages)
+		} else {
+			// Load image defaults from images.yaml for subdirs that aren't the default
+			imagesYamlPath := filepath.Join(embeddedChartsDir, subDir.Name(), "images.yaml")
+			imagesYamlFile, err := os.ReadFile(imagesYamlPath)
 			if err != nil {
-				klog.ErrorS(err, "Error loading chart", "chartsPath", chartsPath)
+				klog.InfoS("no default images will be loaded",
+					"imagesYamlPath", imagesYamlPath)
+				continue
+			}
+
+			var vsDefaultImages map[string]string // The defaultImages for this chartKey
+			err = yaml.Unmarshal(imagesYamlFile, &vsDefaultImages)
+			if err != nil {
+				klog.ErrorS(err, "unable to parse images.yaml", "imagesYamlPath", imagesYamlPath)
 				return err
 			}
-			klog.InfoS("Successfully loaded chart", "chartKey", chartKey, "Name", chart.Name(), "AppVersion", chart.AppVersion())
+			klog.InfoS("Default operand images (from images.yaml)",
+				"chartKey", chartKey, "vsDefaultImages", vsDefaultImages)
 
-			// Save chart into memory
-			loadedChartsMap.Store(chartKey, chart)
-
-			// Now look to see if we need to override images (either from defaults passed in
-			// or from an images.yaml)
-			if chartKey == defaultChartKey && len(defaultImages) > 0 {
-				// Save default image values for the default chartKey
-				klog.InfoS("Default operand images (from mch configmap defaults)",
-					"chartKey", chartKey, "vsDefaultImages", defaultImages)
-				loadedImagesMap.Store(chartKey, defaultImages)
-			} else {
-				// Load image defaults from images.yaml for subdirs that aren't the default
-				imagesYamlPath := filepath.Join(embeddedChartsDir, subDir.Name(), "images.yaml")
-				imagesYamlFile, err := os.ReadFile(imagesYamlPath)
-				if err != nil {
-					klog.InfoS("no default images will be loaded",
-						"imagesYamlPath", imagesYamlPath)
-					continue
-				}
-
-				var vsDefaultImages map[string]string // The defaultImages for this chartKey
-				err = yaml.Unmarshal(imagesYamlFile, &vsDefaultImages)
-				if err != nil {
-					klog.ErrorS(err, "unable to parse images.yaml", "imagesYamlPath", imagesYamlPath)
-					return err
-				}
-				klog.InfoS("Default operand images (from images.yaml)",
-					"chartKey", chartKey, "vsDefaultImages", vsDefaultImages)
-
-				// Save default image values for this chartKey
-				loadedImagesMap.Store(chartKey, vsDefaultImages)
-			}
+			// Save default image values for this chartKey
+			loadedImagesMap.Store(chartKey, vsDefaultImages)
 		}
 	}
 

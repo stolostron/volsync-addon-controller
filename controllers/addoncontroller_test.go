@@ -339,6 +339,38 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						}
 					})
 
+					When("The managedClusterAddOn has an override to use a different chartKey and no images set", func() {
+						// Note this will only work with our test charts in hack/testhelmcharts as we put
+						// a fake "dev" and "dev2" subdirs there.
+						// Testing with dev2 has no image defaults, so will test the upstream scenario
+						// where we do not have image defaults set in the ACM configmap and should simply
+						// use the values set in the helm chart
+						BeforeEach(func() {
+							mcAddon.Annotations = map[string]string{
+								controllers.AnnotationHelmChartKey: "dev2",
+							}
+						})
+
+						It("Should render the helm charts in that subdir", func() {
+							vsDeploy := helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
+								expectedVolSyncNamespace, mgdClusterIsOpenShift)
+							Expect(vsDeploy).NotTo(BeNil())
+
+							rbacProxyImage := vsDeploy.Spec.Template.Spec.Containers[0].Image
+							// Should be set to the image from the test "dev2" helm charts
+							Expect(rbacProxyImage).To(Equal("quay.io/brancz/kube-rbac-proxy:v0.18.1"))
+
+							volSyncImage := vsDeploy.Spec.Template.Spec.Containers[1].Image
+							// Should be set to the image from the test "dev2" helm charts
+							Expect(volSyncImage).To(Equal("quay.io/backube/volsync:0.13.0"))
+
+							volSyncArgs := vsDeploy.Spec.Template.Spec.Containers[1].Args
+
+							// Make sure args are updated to point to the correct image (volsyncImage) for the movers
+							verifyVolSyncDeploymentArgsForMoverImages(volSyncArgs, volSyncImage)
+						})
+					})
+
 					Context("When the ManagedClusterAddOn spec does not set an installNamespace", func() {
 						It("Should install to default namespace", func() {
 							// should this get set in the managedclusteraddon.spec.InstallNamespace as well?

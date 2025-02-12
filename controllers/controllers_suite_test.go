@@ -58,8 +58,8 @@ var _ = BeforeSuite(func() {
 	// Find the location of where we have the test charts
 	wd, err := os.Getwd() // This should be our helmutils pkg dir
 	Expect(err).NotTo(HaveOccurred())
-	// Charts located in /helmcharts
-	testChartsDir := filepath.Join(wd, "..", "helmcharts")
+	// Charts for our testing located in hack/testhelmcharts
+	testChartsDir := filepath.Join(wd, "..", "hack", "testhelmcharts")
 
 	klog.InfoS("Loading charts", "testChartsDir", testChartsDir)
 	// Load the charts (normally done in main)
@@ -75,8 +75,6 @@ var _ = BeforeSuite(func() {
 	// Startup testenv
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			// CRDs
-			//filepath.Join("..", "config", "crd", "bases"),
 			// CRDs needed for tests
 			filepath.Join("..", "hack", "crds"),
 		},

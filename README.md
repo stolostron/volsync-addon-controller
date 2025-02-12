@@ -17,6 +17,10 @@ This product will be installed automatically with Red Hat Advanced Cluster Manag
 On a hub cluster with the volsync addon controller running, create a ManagedClusterAddOn in the namespace
 of the managed cluster you want the volsync operator installed on.
 
+As of ACM 2.13 and above, the volsync-addon-controller will deploy VolSync on the managed cluster
+as a helm chart. This means VolSync will appear as a deployment in the `volsync-system` namespace on the
+managed cluster.
+
 Sample ManagedClusterAddOn (replace `managed_cluster_namespace` with the appropriate managed cluster name):
 
 ```yaml
@@ -26,117 +30,6 @@ metadata:
   name: volsync
   namespace: <managed_cluster_namespace>
 spec: {}
-```
-
-### Advanced usage
-
-Optional annotations can be added to override the defaults used by the ACM operator.
-
-```yaml
-apiVersion: addon.open-cluster-management.io/v1alpha1
-kind: ManagedClusterAddOn
-metadata:
-  name: volsync
-  namespace: <managed_cluster_namespace>
-  annotations:
-    operator-subscription-channel: "stable"
-    operator-subscription-source: "custom-catalog-source"
-    operator-subscription-sourceNamespace: "openshift-marketplace"
-    operator-subscription-installPlanApproval: "Manual"
-    operator-subscription-startingCSV: "volsync.vX.Y.Z"
-spec: {}
-```
-
-### Installing via a label on a managed cluster
-
-Instead of manually creating a ManagedClusterAddOn CR, you can alternatively install VolSync on your managed
-clusters by adding a label to the ManagedCluster resource on the hub cluster.
-
-If the label `addons.open-cluster-management.io/volsync` is set to value "true" on a ManagedCluster resource on the hub
-then the addon controller will automatically create a ManagedClusterAddOn in the namespace for the managed cluster and
-thus trigger the deployment of the volsync operator on that managed cluster.
-
-Example using the `oc` command to add the label to a managed cluster.
-
-```shell
-oc label managedcluster my-managed-cluster addons.open-cluster-management.io/volsync="true"
-```
-
-## Testing using the downstream operator catalog
-
-To test the addon controller and VolSync operator for builds that are not yet published to the official Red Hat
-Catalog (for example prior to our initial VolSync operator release, or when new pre-release versions are
-published to the downstream catalog), testers can follow the following steps.
-
-These steps assume that there is a hub cluster with ACM installed with the version of the volsync-addon-controller
-you want to test with.  It also assumes there is 1 or more managed clusters, and these managed clusters are the ones
-that you want to deploy the VolSync operator on.
-
-### On the managed clusters
-
-- First disable old catalog sources, see [deploy-from-brew - Step 0 disable old catalogsources](https://github.com/stolostron/deploy/blob/master/docs/deploy-from-brew.md#step-0-disable-old-catalogsources).
-  This step is so we can stop using the prebuilt operator catalog and instead replace with the downstream pre-release
-  catalog
-
-  ```shell
-  oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources","value": true}]'
-  ```
-
-- Follow [deploy-from-brew](https://github.com/stolostron/deploy/blob/master/docs/deploy-from-brew.md)
-  steps `0, 1 & 2`.  These steps involve authenticating so the downstream image can be pulled, updating the auth on the
-  cluster itself and also creating an ImageContentSourcePolicy (ICSP) to add brew as a mirror for requests to the
-  redhat registry.
-
-- Create a catalog source to point to the image.  This will essentially look like the official `redhat-operators`
-  catalog source.  The image should be the image that corresponds to the downstream operator bundle image you want
-  to test against.
-
-```yaml
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: volsync-operators
-  namespace: openshift-marketplace
-spec:
-  sourceType: grpc
-  image: <REPLACE_IMAGE>
-  displayName: VolSync Operator Catalog
-  publisher: grpc
-```
-
-**REPLACE_IMAGE** should be replaced with the image.
-
-As an example, you may have an index image location for the build that looks like this:
-
-```text
-Index image v4.6: registry-proxy.engineering.redhat.com/rh-osbs/iib:199520
-Index image v4.7: registry-proxy.engineering.redhat.com/rh-osbs/iib:199545
-Index image v4.8: registry-proxy.engineering.redhat.com/rh-osbs/iib:199592
-Index image v4.9: registry-proxy.engineering.redhat.com/rh-osbs/iib:199646
-Index image v4.10: registry-proxy.engineering.redhat.com/rh-osbs/iib:199693
-Index image v4.11: registry-proxy.engineering.redhat.com/rh-osbs/iib:199736
-```
-
-If you are testing on an OCP 4.9 image, you would then choose the
-`registry-proxy.engineering.redhat.com/rh-osbs/iib:199646` image.
-
-You will also need to replace `registry-proxy.engineering.redhat.com` with `brew.registry.redhat.io` in the image path.
-
-So `registry-proxy.engineering.redhat.com/rh-osbs/iib:199646` becomes `brew.registry.redhat.io/rh-osbs/iib:199646`
-
-Example edited CatalogSource:
-
-```yaml
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: volsync-operators
-  namespace: openshift-marketplace
-spec:
-  sourceType: grpc
-  image: brew.registry.redhat.io/rh-osbs/iib:199646`
-  displayName: VolSync Operator Catalog
-  publisher: grpc
 ```
 
 ### On the Hub cluster
@@ -151,12 +44,17 @@ ManagedCluster resource on the hub.
 
 ### Deploying VolSync to ManagedCluster via label (to be done on the hub cluster)
 
-Add the label: `addons.open-cluster-management.io/volsync` with value `"true"`
+Instead of manually creating a ManagedClusterAddOn CR, you can alternatively install VolSync on your managed
+clusters by adding a label to the ManagedCluster resource on the hub cluster.
 
-For example to add the label to a managed cluster named `test-managed-1` you can do the following:
+If the label `addons.open-cluster-management.io/volsync` is set to value "true" on a ManagedCluster resource on the hub
+then the addon controller will automatically create a ManagedClusterAddOn in the namespace for the managed cluster and
+thus trigger the deployment of the volsync operator on that managed cluster.
+
+Example using the `oc` command to add the label to a managed cluster named `test-managed-1`.
 
 ```shell
-oc label managedcluster test-managed-1 "addons.open-cluster-management.io/volsync"="true"
+oc label managedcluster test-managed-1 addons.open-cluster-management.io/volsync="true"
 ```
 
 After this step you should see a ManagedClusterAddOn resource should be created automatically for you on the hub
@@ -236,7 +134,7 @@ apiVersion: addon.open-cluster-management.io/v1alpha1
 kind: ManagedClusterAddOn
 metadata:
   name: volsync
-  namespace: cluster1
+  namespace: test-managed-1
 spec:
   configs:
   - group: addon.open-cluster-management.io
@@ -268,6 +166,33 @@ spec:
       namespace: default
 ```
 
+## Advanced useage only - Example of overriding registries or images
+
+This should not normally be required unless we have a specific need to override the image used
+on a specific build
+
+Example addondeploymentconfig:
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: AddOnDeploymentConfig
+metadata:
+  name: volsync-addondeployconfig
+  namespace: default
+spec:
+  registries:
+    # This will replace volsync images (kube-rbac-proxy img or volsync img) paths to the registry
+    # will only replace if the source path matches (normally would not use this if overriding
+    # images below, but it can be done)
+    - mirror: quay.io/mytest
+      source: registry-proxy.engineering.redhat.com/rh-osbs
+  customizedVariables:
+    - name: OPERAND_IMAGE_OSE_KUBE_RBAC_PROXY
+      value: registry-proxy.engineering.redhat.com/rh-osbs/kube-rbac-proxy:v0.18.2
+    - name: OPERAND_IMAGE_VOLSYNC
+      value: quay.io/myrepo/volsync:latest
+```
+
 ## Development
 
 ## Installation
@@ -281,3 +206,110 @@ If you would like to run the volsync addon controller outside the cluster, execu
 ```shell
 make run
 ```
+
+___
+
+# Old usage (from ACM 2.12 and earlier)
+
+For ADM 2.12 and earlier, the volsync-addon-controller deployed VolSync as an OpenShift operator
+by creating an OLM subscription on the managed cluster. This meant that only OpenShift
+managed clusters were supported.
+
+See advanced usage for how the OLM subscription could be updated to pick different VolSync verions
+
+## Advanced usage
+
+Optional annotations can be added to override the defaults used by the ACM operator.
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ManagedClusterAddOn
+metadata:
+  name: volsync
+  namespace: <managed_cluster_namespace>
+  annotations:
+    operator-subscription-channel: "stable"
+    operator-subscription-source: "custom-catalog-source"
+    operator-subscription-sourceNamespace: "openshift-marketplace"
+    operator-subscription-installPlanApproval: "Manual"
+    operator-subscription-startingCSV: "volsync.vX.Y.Z"
+spec: {}
+```
+
+## Testing using the downstream operator catalog
+
+To test the addon controller and VolSync operator for builds that are not yet published to the official Red Hat
+Catalog (for example prior to our initial VolSync operator release, or when new pre-release versions are
+published to the downstream catalog), testers can follow the following steps.
+
+These steps assume that there is a hub cluster with ACM installed with the version of the volsync-addon-controller
+you want to test with.  It also assumes there is 1 or more managed clusters, and these managed clusters are the ones
+that you want to deploy the VolSync operator on.
+
+### On the managed clusters
+
+- First disable old catalog sources, see [deploy-from-brew - Step 0 disable old catalogsources](https://github.com/stolostron/deploy/blob/master/docs/deploy-from-brew.md#step-0-disable-old-catalogsources).
+  This step is so we can stop using the prebuilt operator catalog and instead replace with the downstream pre-release
+  catalog
+
+  ```shell
+  oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources","value": true}]'
+  ```
+
+- Follow [deploy-from-brew](https://github.com/stolostron/deploy/blob/master/docs/deploy-from-brew.md)
+  steps `0, 1 & 2`.  These steps involve authenticating so the downstream image can be pulled, updating the auth on the
+  cluster itself and also creating an ImageContentSourcePolicy (ICSP) to add brew as a mirror for requests to the
+  redhat registry.
+
+- Create a catalog source to point to the image.  This will essentially look like the official `redhat-operators`
+  catalog source.  The image should be the image that corresponds to the downstream operator bundle image you want
+  to test against.
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: volsync-operators
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: <REPLACE_IMAGE>
+  displayName: VolSync Operator Catalog
+  publisher: grpc
+```
+
+**REPLACE_IMAGE** should be replaced with the image.
+
+As an example, you may have an index image location for the build that looks like this:
+
+```text
+Index image v4.6: registry-proxy.engineering.redhat.com/rh-osbs/iib:199520
+Index image v4.7: registry-proxy.engineering.redhat.com/rh-osbs/iib:199545
+Index image v4.8: registry-proxy.engineering.redhat.com/rh-osbs/iib:199592
+Index image v4.9: registry-proxy.engineering.redhat.com/rh-osbs/iib:199646
+Index image v4.10: registry-proxy.engineering.redhat.com/rh-osbs/iib:199693
+Index image v4.11: registry-proxy.engineering.redhat.com/rh-osbs/iib:199736
+```
+
+If you are testing on an OCP 4.9 image, you would then choose the
+`registry-proxy.engineering.redhat.com/rh-osbs/iib:199646` image.
+
+You will also need to replace `registry-proxy.engineering.redhat.com` with `brew.registry.redhat.io` in the image path.
+
+So `registry-proxy.engineering.redhat.com/rh-osbs/iib:199646` becomes `brew.registry.redhat.io/rh-osbs/iib:199646`
+
+Example edited CatalogSource:
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: volsync-operators
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: brew.registry.redhat.io/rh-osbs/iib:199646`
+  displayName: VolSync Operator Catalog
+  publisher: grpc
+```
+

@@ -9,6 +9,7 @@ import (
 	"open-cluster-management.io/addon-framework/pkg/addonfactory"
 	"open-cluster-management.io/addon-framework/pkg/agent"
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
+	addonv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
 )
@@ -154,7 +155,8 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	mergedValues := addonfactory.MergeValues(manifestConfigValues, deploymentConfigValues)
 
 	// volSyncImage/volsyncRbacProxyImage will be the images set either by defaults,
-	// or overridden in the addondeploymentconfig
+	// or overridden in the addondeploymentconfig (or empty if no defaults, in which
+	// case whatever is in the helm charts will be used - this is the upstream case)
 	volSyncImage := mh.getVolSyncImageFromValues(mergedValues)
 	volSyncRbacProxyImage := mh.getVolSyncRbacProxyImageFromValues(mergedValues)
 
@@ -163,8 +165,8 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	// addondeploymentconfig.spec.registries)
 	deploymentConfigValues2ImageOverrides, err := addonfactory.GetAddOnDeploymentConfigValues(
 		addonframeworkutils.NewAddOnDeploymentConfigGetter(mh.addonClient),
-		addonfactory.ToImageOverrideValuesFunc(EnvVarVolSyncImageName, volSyncImage),
-		addonfactory.ToImageOverrideValuesFunc(EnvVarRbacProxyImageName, volSyncRbacProxyImage),
+		getVolSyncImageOverrideFunc(volSyncImage),
+		getVolSyncRbacProxyImageOverrideFunc(volSyncRbacProxyImage),
 	)(mh.cluster, mh.addon)
 	if err != nil {
 		return nil, err
@@ -199,11 +201,19 @@ func (mh *manifestHelperHelmDeploy) getImagePullSecrets() []map[string]string {
 }
 
 func (mh *manifestHelperHelmDeploy) getVolSyncImageFromValues(values addonfactory.Values) string {
-	return values[EnvVarVolSyncImageName].(string)
+	v, ok := values[EnvVarVolSyncImageName]
+	if ok {
+		return v.(string)
+	}
+	return ""
 }
 
 func (mh *manifestHelperHelmDeploy) getVolSyncRbacProxyImageFromValues(values addonfactory.Values) string {
-	return values[EnvVarRbacProxyImageName].(string)
+	v, ok := values[EnvVarRbacProxyImageName]
+	if ok {
+		return v.(string)
+	}
+	return ""
 }
 
 func (mh *manifestHelperHelmDeploy) getChartKey() string {
@@ -214,6 +224,7 @@ func (mh *manifestHelperHelmDeploy) getChartKey() string {
 
 	customChartKey := mh.addon.GetAnnotations()[AnnotationHelmChartKey]
 	if customChartKey != "" {
+		klog.InfoS("Using custom chart key", "customchartKey", customChartKey)
 		chartKey = customChartKey
 	}
 
@@ -270,4 +281,32 @@ func convertValuesMapKey(values addonfactory.Values, oldKey, newKey string) {
 		values[newKey] = v
 		delete(values, oldKey)
 	}
+}
+
+func getVolSyncImageOverrideFunc(volSyncImage string,
+) func(config addonv1alpha1.AddOnDeploymentConfig) (addonfactory.Values, error) {
+	if volSyncImage == "" {
+		// No image override needed, return no-op func
+		return func(config addonv1alpha1.AddOnDeploymentConfig) (addonfactory.Values, error) {
+			return nil, nil
+		}
+	}
+
+	// Return override func to override our image (via env var name) and our value with whatever
+	// registries may be set in the addondeploymentconfig
+	return addonfactory.ToImageOverrideValuesFunc(EnvVarVolSyncImageName, volSyncImage)
+}
+
+func getVolSyncRbacProxyImageOverrideFunc(volSyncRbacProxyImage string,
+) func(config addonv1alpha1.AddOnDeploymentConfig) (addonfactory.Values, error) {
+	if volSyncRbacProxyImage == "" {
+		// No image override needed, return no-op func
+		return func(config addonv1alpha1.AddOnDeploymentConfig) (addonfactory.Values, error) {
+			return nil, nil
+		}
+	}
+
+	// Return override func to override our image (via env var name) and our value with whatever
+	// registries may be set in the addondeploymentconfig
+	return addonfactory.ToImageOverrideValuesFunc(EnvVarRbacProxyImageName, volSyncRbacProxyImage)
 }

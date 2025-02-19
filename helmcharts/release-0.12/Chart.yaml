@@ -1,0 +1,77 @@
+apiVersion: v2
+name: volsync
+type: application
+description: Asynchronous data replication for Kubernetes
+home: https://volsync.readthedocs.io/
+icon: https://raw.githubusercontent.com/backube/volsync/main/docs/media/volsync.svg?sanitize=true
+sources:
+  - https://github.com/backube/volsync
+maintainers:
+  - name: John Strunk
+    email: jstrunk@redhat.com
+    url: https://github.com/JohnStrunk
+  - name: Tesshu Flower
+    email: tflower@redhat.com
+    url: https://github.com/tesshuflower
+keywords:
+  - backup
+  - csi
+  - data
+  - disaster recovery
+  - replication
+  - storage
+annotations: # https://artifacthub.io/docs/topics/annotations/helm/
+  # Changelog for current chart & app version
+  # Kinds: added, changed, deprecated, removed, fixed, and security
+  artifacthub.io/changes: |
+    - kind: changed
+      description: imagePullSecrets in helm charts will be copied from volsync controller namespace to the mover namespace so mover jobs can use them
+    - kind: changed
+      description: Updated release to build on golang 1.23
+    - kind: changed
+      description: Syncthing updated to v1.29.2
+    - kind: changed
+      description: kube-rbac-proxy image configurable in helm chart values
+    - kind: changed
+      description: mover scripts updated to use sync -f to only sync the target filesystem at the end of mover tasks
+    - kind: changed
+      description: Updates the ensure_initialized function in the restic mover script to follow restic recommendations
+    - kind: fixed
+      description: All movers should return error if not able to EnsurePVCFromSrc
+    - kind: fixed
+      description: Fix for mover job/service name length too long (>63 chars) if the replicationsource or replicationdestination CR name is too long
+    - kind: security
+      description: kube-rbac-proxy upgraded to 0.18.2
+  artifacthub.io/crds: |
+    - kind: ReplicationDestination
+      version: v1alpha1
+      name: replicationdestination.volsync.backube
+      displayName: Replication destination
+      description: Defines the destination of a replicated volume
+    - kind: ReplicationSource
+      version: v1alpha1
+      name: replicationsource.volsync.backube
+      displayName: Replication source
+      description: Defines the source of a replicated volume
+  artifacthub.io/license: AGPL-3.0-or-later
+  artifacthub.io/operator: "true"
+  artifacthub.io/operatorCapabilities: Basic Install
+  artifacthub.io/signKey: |
+    fingerprint: 2C937ADACD4BEF921197F66EDC7556B1903A252B
+    url: https://keys.openpgp.org/vks/v1/by-fingerprint/2C937ADACD4BEF921197F66EDC7556B1903A252B
+
+# We require v1 CSI snapshots (1.20+)
+# Adding "-0" at the end of the version string permits pre-release kube versions
+# to match. See https://github.com/helm/helm/issues/6190
+kubeVersion: "^1.20.0-0"
+
+# This is the chart version. This version number should be incremented each time
+# you make changes to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: "0.12.0"
+
+# This is the version number of the application being deployed. This version
+# number should be incremented each time you make changes to the application.
+# Versions are not expected to follow Semantic Versioning. They should reflect
+# the version the application is using. It is recommended to use it with quotes.
+appVersion: "0.12.0"

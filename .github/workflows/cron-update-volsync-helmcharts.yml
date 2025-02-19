@@ -14,11 +14,13 @@ jobs:
       matrix:
         branches:
           # ACM 2.13 = VolSync 0.12
-          - ACM_BRANCH: "release-2.13"
-            VOLSYNC_BRANCH: "release-0.12"
+          - ACM_BRANCH: "main" # This is release-0.13 right now
+            VOLSYNC_BRANCH: "release-0.12" # VolSync release branch
+            ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.12" # this name matches the operator channel name
     env:
       ACM_BRANCH: ${{ matrix.branches.ACM_BRANCH }}
       VOLSYNC_BRANCH: ${{ matrix.branches.VOLSYNC_BRANCH }}
+      ACM_VOLSYNC_HELMCHARTS_DIR: ${{ matrix.branches.ACM_VOLSYNC_HELMCHARTS_DIR }}
     steps:
       - name: "checkout volsync-addon-controller code"
         uses: actions/checkout@v4
@@ -37,7 +39,7 @@ jobs:
 
       - name: Update helm charts
         run: |
-          cp -r $GITHUB_WORKSPACE/volsync/helm/volsync $GITHUB_WORKSPACE/volsync-addon-controller/helmcharts/${{ env.VOLSYNC_BRANCH }}/
+          cp -r $GITHUB_WORKSPACE/volsync/helm/volsync $GITHUB_WORKSPACE/volsync-addon-controller/helmcharts/${{ env.ACM_VOLSYNC_HELMCHARTS_DIR }}/
           cd $GITHUB_WORKSPACE/volsync-addon-controller
           git diff helmcharts
 
@@ -48,13 +50,13 @@ jobs:
           add-paths: |
             helmcharts/*
           branch: "${{ env.ACM_BRANCH }}-autoupdate-volsync-helmcharts"
-          commit-message: "automatic update in {{ env.ACM_BRANCH}} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
+          commit-message: "automatic update in {{ env.ACM_BRANCH }} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
           signoff: true
           sign-commits: true
-          title: "[${{ env.ACM_BRANCH }}] Update VolSync ${{ env.VOLSYNC_BRANCH}} helm charts"
+          title: "[${{ env.ACM_BRANCH }}] Update VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
           body: |
             Automated update:
-              - VolSync helm charts updated for ${{ env.VOLSYNC_BRANCH }}
+              - VolSync helm charts updated for ${{ env.VOLSYNC_BRANCH }} in dir helmcharts/${{ env.ACM_VOLSYNC_HELMCHARTS_DIR }}
           assignees: tesshuflower
           reviewers: tesshuflower
           draft: false

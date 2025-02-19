@@ -1,35 +1,43 @@
 name: cron-update-volsync-helmcharts
 
 on:
-  #schedule:
-  #  - cron: '0 3 * * *'
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch: {}  # Useful for testing, but not necessary
 
 jobs:
-  update-volsync-helmcharts-release-2.13:
-    # ACM 2.13 = VolSync 0.12
-    name: update-volsync-helmcharts-release-2.13
+  update-volsync-helmcharts:
+    name: update-volsync-helmcharts
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        branches:
+          # ACM 2.13 = VolSync 0.12
+          - ACM_BRANCH: "release-2.13"
+            VOLSYNC_BRANCH: "release-0.12"
     env:
-      - ACM_BRANCH: "release-2.13"
-      - VOLSYNC_BRANCH: "release-0.12"
+      ACM_BRANCH: ${{ matrix.branches.ACM_BRANCH }}
+      VOLSYNC_BRANCH: ${{ matrix.branches.VOLSYNC_BRANCH }}
     steps:
-      - name: "checkout volsync-addon-controller code $ACM_BRANCH"
+      - name: "checkout volsync-addon-controller code"
         uses: actions/checkout@v4
-        ref: "$ACM_BRANCH"
-        path: "volsync-addon-controller"
-      
-      - name: "checkout volsync code (helm charts only) $VOLSYNC_BRANCH"
-        uses: actions/checkout@v4
-        ref: "$VOLSYNC_BRANCH"
-        path: "volsync"
         with:
-          sparse-checkout |
+          ref: "${{ env.ACM_BRANCH }}"
+          path: "volsync-addon-controller"
+      
+      - name: "checkout volsync code (helm charts only)"
+        uses: actions/checkout@v4
+        with:
+          repository: "backube/volsync"
+          ref: "${{ env.VOLSYNC_BRANCH }}"
+          path: "volsync"
+          sparse-checkout: |
             helm
 
       - name: Update helm charts
         run: |
-          cp -r $GITHUB_WORKSPACE/volsync/helm/volsync $GITHUB_WORKSPACE/volsync-addon-controller/helmcharts/$VOLSYNC_BRANCH/
+          cp -r $GITHUB_WORKSPACE/volsync/helm/volsync $GITHUB_WORKSPACE/volsync-addon-controller/helmcharts/${{ env.VOLSYNC_BRANCH }}/
           cd $GITHUB_WORKSPACE/volsync-addon-controller
           git diff helmcharts
 
@@ -39,14 +47,14 @@ jobs:
           path: "volsync-addon-controller"
           add-paths: |
             helmcharts/*
-          branch: "$ACM_BRANCH-autoupdate-volsync-helmcharts"
-          commit-message: "automatic update of VolSync $VOLSYNC_BRANCH helm charts"
+          branch: "${{ env.ACM_BRANCH }}-autoupdate-volsync-helmcharts"
+          commit-message: "automatic update in {{ env.ACM_BRANCH}} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
           signoff: true
           sign-commits: true
-          title: "[$ACM_BRANCH] Update VolSync $VOLSYNC_BRANCH helm charts"
+          title: "[${{ env.ACM_BRANCH }}] Update VolSync ${{ env.VOLSYNC_BRANCH}} helm charts"
           body: |
             Automated update:
-              - VolSync helm charts updated for $VOLSYNC_BRANCH
+              - VolSync helm charts updated for ${{ env.VOLSYNC_BRANCH }}
           assignees: tesshuflower
           reviewers: tesshuflower
           draft: false

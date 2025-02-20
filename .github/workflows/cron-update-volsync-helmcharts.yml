@@ -27,7 +27,7 @@ jobs:
         with:
           ref: "${{ env.ACM_BRANCH }}"
           path: "volsync-addon-controller"
-      
+
       - name: "checkout volsync code (helm charts only)"
         uses: actions/checkout@v4
         with:
@@ -50,7 +50,7 @@ jobs:
           add-paths: |
             helmcharts/*
           branch: "${{ env.ACM_BRANCH }}-autoupdate-volsync-helmcharts"
-          commit-message: "automatic update in {{ env.ACM_BRANCH }} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
+          commit-message: "automatic update in ${{ env.ACM_BRANCH }} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
           signoff: true
           sign-commits: true
           title: "[${{ env.ACM_BRANCH }}] Update VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"

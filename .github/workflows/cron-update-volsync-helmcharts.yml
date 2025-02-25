@@ -13,8 +13,16 @@ jobs:
       fail-fast: false
       matrix:
         branches:
+          #
+          # ACM 2.14 = VolSync 0.13
+          # NOTES: - ACM br main is ffwding to release-2.14 atm
+          #        - Using volsync br release-0.12 for the moment but will need to change to 0.13 once dev starts
+          - ACM_BRANCH: "main"
+            VOLSYNC_BRANCH: "release-0.12" # VolSync release branch
+            ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.12" # this name matches the operator channel name
+          #
           # ACM 2.13 = VolSync 0.12
-          - ACM_BRANCH: "main" # This is release-0.13 right now
+          - ACM_BRANCH: "release-2.13"
             VOLSYNC_BRANCH: "release-0.12" # VolSync release branch
             ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.12" # this name matches the operator channel name
     env:
@@ -27,7 +35,7 @@ jobs:
         with:
           ref: "${{ env.ACM_BRANCH }}"
           path: "volsync-addon-controller"
-      
+
       - name: "checkout volsync code (helm charts only)"
         uses: actions/checkout@v4
         with:
@@ -50,7 +58,7 @@ jobs:
           add-paths: |
             helmcharts/*
           branch: "${{ env.ACM_BRANCH }}-autoupdate-volsync-helmcharts"
-          commit-message: "automatic update in {{ env.ACM_BRANCH }} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
+          commit-message: "automatic update in ${{ env.ACM_BRANCH }} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
           signoff: true
           sign-commits: true
           title: "[${{ env.ACM_BRANCH }}] Update VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"

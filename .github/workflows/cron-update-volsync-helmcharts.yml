@@ -57,7 +57,7 @@ jobs:
           path: "volsync-addon-controller"
           add-paths: |
             helmcharts/*
-          branch: "${{ env.ACM_BRANCH }}-autoupdate-volsync-helmcharts"
+          branch: "autoupdate-volsync-helmcharts-${{ env.ACM_BRANCH }}"
           commit-message: "automatic update in ${{ env.ACM_BRANCH }} of VolSync ${{ env.VOLSYNC_BRANCH }} helm charts"
           signoff: true
           sign-commits: true

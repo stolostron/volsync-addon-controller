@@ -369,8 +369,8 @@ k8s.io/utils v0.0.0-20241210054802-24370beab758 h1:sdbE21q2nlQtFh65saZY+rRM6x6aJ
 k8s.io/utils v0.0.0-20241210054802-24370beab758/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 open-cluster-management.io/addon-framework v0.11.1-0.20241217015347-99a171302bb4 h1:U7uOHdrXlEvcszpr6MVouRy7xJLiVZirOTSBEfMWW2c=
 open-cluster-management.io/addon-framework v0.11.1-0.20241217015347-99a171302bb4/go.mod h1:tsBSNs9mGfVQQjXBnjgpiX6r0UM+G3iNfmzQgKhEfw4=
-open-cluster-management.io/api v0.15.1-0.20250226073118-8c9793267c9e h1:4iQneGfxartfFSR+IHZRrjEuwtRpiHyKQ15Kd33YCVk=
-open-cluster-management.io/api v0.15.1-0.20250226073118-8c9793267c9e/go.mod h1:9erZEWEn4bEqh0nIX2wA7f/s3KCuFycQdBrPrRzi0QM=
+open-cluster-management.io/api v0.16.0 h1:fToANqblBmWCn8f6JD4uRHFYJVVaN/usp9PeiRhex1s=
+open-cluster-management.io/api v0.16.0/go.mod h1:9erZEWEn4bEqh0nIX2wA7f/s3KCuFycQdBrPrRzi0QM=
 open-cluster-management.io/config-policy-controller v0.15.0 h1:tDuIVT2L/luKLvLIz7/wkbskTZqWypLkwjyVMxPqhsI=
 open-cluster-management.io/config-policy-controller v0.15.0/go.mod h1:IFGPJBb+zKC7V1lavwMUApxLnbfrANpidBTohsu4z6Q=
 open-cluster-management.io/sdk-go v0.15.0 h1:2IAJnPfUoY6rPC5w7LhqAnvIlgekPoVW03LdZO1unIM=

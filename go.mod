@@ -3,7 +3,7 @@ module github.com/stolostron/volsync-addon-controller
 go 1.23.0
 
 require (
-	github.com/onsi/ginkgo/v2 v2.23.0
+	github.com/onsi/ginkgo/v2 v2.23.3
 	github.com/onsi/gomega v1.36.2
 	github.com/openshift/library-go v0.0.0-20250317175157-f5f4fccb26ff // release-4.19
 	github.com/operator-framework/api v0.30.0

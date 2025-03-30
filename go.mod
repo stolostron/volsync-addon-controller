@@ -20,7 +20,7 @@ require (
 	open-cluster-management.io/api v0.16.1
 	open-cluster-management.io/config-policy-controller v0.16.0
 	open-cluster-management.io/sdk-go v0.16.0
-	sigs.k8s.io/controller-runtime v0.20.3
+	sigs.k8s.io/controller-runtime v0.20.4
 )
 
 require (

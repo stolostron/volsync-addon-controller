@@ -1734,7 +1734,9 @@ var _ = Describe("Addon Status Update Tests", func() {
 							if statusCondition == nil {
 								return false
 							}
-							return statusCondition.Reason == "ProbeUnavailable"
+
+							return statusCondition.Reason == "ProbeUnavailable" &&
+								strings.Contains(statusCondition.Message, "readyReplicas")
 						}, timeout, interval).Should(BeTrue())
 
 						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
@@ -1791,7 +1793,8 @@ var _ = Describe("Addon Status Update Tests", func() {
 							if statusCondition == nil {
 								return false
 							}
-							return statusCondition.Reason == "ProbeUnavailable"
+							return statusCondition.Reason == "ProbeUnavailable" &&
+								strings.Contains(statusCondition.Message, "desiredNumberReplicas")
 						}, timeout, interval).Should(BeTrue())
 
 						logger.Info("#### status condition", "statusCondition", statusCondition)

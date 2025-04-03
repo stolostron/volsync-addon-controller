@@ -121,7 +121,7 @@ func GetVolSyncDefaultImagesMap(chartKey string) (map[string]string, error) {
 func GetEmbeddedChart(chartKey string) (*chart.Chart, error) {
 	loadedChart, ok := loadedChartsMap.Load(chartKey)
 	if !ok {
-		return nil, fmt.Errorf("Unable to find chart %s", chartKey)
+		return nil, fmt.Errorf("unable to find chart %s", chartKey)
 	}
 	return loadedChart.(*chart.Chart), nil
 }

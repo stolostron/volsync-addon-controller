@@ -121,7 +121,7 @@ require (
 	helm.sh/helm/v3 v3.14.3 // indirect
 	k8s.io/apiextensions-apiserver v0.30.4 // indirect
 	k8s.io/apiserver v0.30.4 // indirect
-	k8s.io/kms v0.30.4 // indirect
+	k8s.io/kms v0.32.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 	open-cluster-management.io/sdk-go v0.13.1-0.20240416030555-aa744f426379 // indirect

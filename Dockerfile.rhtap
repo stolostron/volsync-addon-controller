@@ -18,9 +18,11 @@ COPY controllers/ controllers/
 # We don't vendor modules. Enforce that behavior
 ENV GOFLAGS=-mod=readonly
 ENV CGO_ENABLED=1
+ENV GOEXPERIMENT=strictfipsruntime
+ENV BUILD_TAGS="strictfipsruntime"
 ARG versionFromGit_arg="(unknown)"
 ARG commitFromGit_arg="(unknown)"
-RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
+RUN GO111MODULE=on go build -tags strictfipsruntime -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
 # Final container
 FROM registry.redhat.io/ubi9/ubi-minimal:latest

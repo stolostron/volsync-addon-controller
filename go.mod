@@ -131,7 +131,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apiserver v0.32.3 // indirect
 	k8s.io/kms v0.32.3 // indirect
-	k8s.io/kube-aggregator v0.32.1 // indirect
+	k8s.io/kube-aggregator v0.32.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect

@@ -1472,7 +1472,8 @@ var _ = Describe("Addon Status Update Tests", func() {
 								return false
 							}
 							logger.Info("statusCondition", "statusCondition", &statusCondition)
-							return statusCondition.Reason == "ProbeUnavailable"
+							return statusCondition.Reason == "ProbeUnavailable" &&
+								strings.Contains(statusCondition.Message, "addon subscription not found")
 						}, timeout, interval).Should(BeTrue())
 
 						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))

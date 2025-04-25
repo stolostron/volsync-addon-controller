@@ -429,7 +429,8 @@ spec:
       optional: true
     - name: netrc
       optional: true
-  taskRunTemplate: {}
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-volsync-addon-controller-acm-212
   workspaces:
   - name: workspace
     volumeClaimTemplate:

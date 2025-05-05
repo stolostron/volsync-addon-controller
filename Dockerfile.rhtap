@@ -27,8 +27,8 @@ RUN GO111MODULE=on go build -tags strictfipsruntime -a -o controller -ldflags "-
 # Final container
 FROM registry.redhat.io/ubi9/ubi-minimal:latest
 
-RUN microdnf -y --refresh update && \
-    microdnf clean all
+#RUN microdnf -y --refresh update && \
+#    microdnf clean all
 
 WORKDIR /
 COPY --from=builder /workspace/controller .

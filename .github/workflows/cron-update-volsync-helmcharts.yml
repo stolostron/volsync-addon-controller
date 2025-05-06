@@ -16,10 +16,9 @@ jobs:
           #
           # ACM 2.14 = VolSync 0.13
           # NOTES: - ACM br main is ffwding to release-2.14 atm
-          #        - Using volsync br release-0.12 for the moment but will need to change to 0.13 once dev starts
           - ACM_BRANCH: "main"
-            VOLSYNC_BRANCH: "release-0.12" # VolSync release branch
-            ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.12" # this name matches the operator channel name
+            VOLSYNC_BRANCH: "release-0.13" # VolSync release branch
+            ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.13" # this name matches the operator channel name
           #
           # ACM 2.13 = VolSync 0.12
           - ACM_BRANCH: "release-2.13"

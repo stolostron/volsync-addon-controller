@@ -46,7 +46,7 @@ jobs:
 
       - name: Update helm charts
         run: |
-          cp -r $GITHUB_WORKSPACE/volsync/helm/volsync $GITHUB_WORKSPACE/volsync-addon-controller/helmcharts/${{ env.ACM_VOLSYNC_HELMCHARTS_DIR }}/
+          cp -r $GITHUB_WORKSPACE/volsync/helm $GITHUB_WORKSPACE/volsync-addon-controller/helmcharts/${{ env.ACM_VOLSYNC_HELMCHARTS_DIR }}/
           cd $GITHUB_WORKSPACE/volsync-addon-controller
           git diff helmcharts
 

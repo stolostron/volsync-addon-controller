@@ -47,7 +47,7 @@ const (
 	// Defaults for ACM-2.13 Operator deploy
 	DefaultCatalogSource          = "redhat-operators"
 	DefaultCatalogSourceNamespace = "openshift-marketplace"
-	DefaultChannel                = "stable-0.12" // aligning ACM-2.13 with stable-0.12
+	DefaultChannel                = "stable-0.13" // aligning ACM-2.14 with stable-0.13
 	DefaultStartingCSV            = ""            // By default no starting CSV - will use the latest in the channel
 	DefaultInstallPlanApproval    = "Automatic"
 

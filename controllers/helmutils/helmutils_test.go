@@ -20,7 +20,7 @@ var _ = Describe("Helmutils", func() {
 
 	Context("Load embedded helm charts", func() {
 		// See test embedded charts in hack/testhelmcharts
-		// "stable-0.12" dir has an images.yaml with images specified
+		// "stable-0.13" dir has an images.yaml with images specified
 		// "dev" dir is the default we loaded (but did not load any default images)
 		//    - this would be similar to an upstream build where we have embedded charts
 		//      but do not find the OPERAND_IMAGE overrides in the mch image manifest configmap
@@ -31,15 +31,15 @@ var _ = Describe("Helmutils", func() {
 			chart, err := helmutils.GetEmbeddedChart(testDefaultHelmChartKey)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(chart).NotTo(BeNil())
-			// Our test Charts in "stable-0.12" should be volsync v0.12.x
-			Expect(chart.AppVersion()).To(ContainSubstring("0.12."))
+			// Our test Charts in "stable-0.13" should be volsync v0.13.x
+			Expect(chart.AppVersion()).To(ContainSubstring("0.13."))
 
 			// Test our other test embedded chart
 			oldChart, err := helmutils.GetEmbeddedChart(testOtherHelmChartKey)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(oldChart).NotTo(BeNil())
-			// Test charts in dev are set to volsync v0.13.0 (this is for testing only)
-			Expect(oldChart.AppVersion()).To(Equal("0.13.0"))
+			// Test charts in dev are set to volsync v0.12.0 (this is for testing only)
+			Expect(oldChart.AppVersion()).To(Equal("0.12.0"))
 		})
 
 		It("Should not have other charts loaded", func() {
@@ -61,10 +61,10 @@ var _ = Describe("Helmutils", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(defaultImageMap).NotTo(BeNil())
 
-			// Values should be loaded from our test images.yaml
+			// Values should be loaded from our test images.yaml - see hack/testhelmcharts/dev/images.yaml
 			vsImage, ok := defaultImageMap[controllers.EnvVarVolSyncImageName]
 			Expect(ok).To(BeTrue())
-			Expect(vsImage).To(Equal("registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8:test-version-0.13.0"))
+			Expect(vsImage).To(Equal("registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8:test-version-0.12.0"))
 
 			rbacProxyImage, ok := defaultImageMap[controllers.EnvVarRbacProxyImageName]
 			Expect(ok).To(BeTrue())
@@ -114,7 +114,7 @@ var _ = Describe("Helmutils", func() {
 					rbProxyImg := vsDeployment.Spec.Template.Spec.Containers[0].Image
 					Expect(rbProxyImg).To(Equal("quay.io/brancz/kube-rbac-proxy:v0.18.1"))
 					vsImg := vsDeployment.Spec.Template.Spec.Containers[1].Image
-					Expect(vsImg).To(Equal("quay.io/backube/volsync:0.13.0"))
+					Expect(vsImg).To(Equal("quay.io/backube/volsync:0.12.0"))
 				})
 			})
 

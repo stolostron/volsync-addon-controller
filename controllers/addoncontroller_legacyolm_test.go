@@ -1472,14 +1472,15 @@ var _ = Describe("Addon Status Update Tests", func() {
 								return false
 							}
 							logger.Info("statusCondition", "statusCondition", &statusCondition)
+
 							return statusCondition.Reason == "ProbeUnavailable" &&
-								strings.Contains(statusCondition.Message, "addon subscription not found")
-						}, timeout, interval).Should(BeTrue())
+								strings.Contains(statusCondition.Message, "unexpected installedCSV")
+						}, maxWait, interval).Should(BeTrue())
 
 						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
 						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
 						Expect(statusCondition.Message).To(ContainSubstring("Probe addon unavailable with err"))
-						Expect(statusCondition.Message).To(ContainSubstring("addon subscription not found"))
+						Expect(statusCondition.Message).To(ContainSubstring("unexpected installedCSV value"))
 					})
 				})
 

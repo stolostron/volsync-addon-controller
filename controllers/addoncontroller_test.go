@@ -557,6 +557,25 @@ var _ = Describe("Addoncontroller", func() {
 					})
 
 					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							return operatorSubscription.Spec.Config != nil
+						}, timeout, interval).Should(BeTrue())
+
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
 						Expect(operatorSubscription.Spec.Config.Tolerations).To(BeNil()) // No tolerations set
@@ -596,6 +615,25 @@ var _ = Describe("Addoncontroller", func() {
 					})
 
 					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							return operatorSubscription.Spec.Config != nil
+						}, timeout, interval).Should(BeTrue())
+
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(BeNil()) // No selectors set
@@ -644,6 +682,25 @@ var _ = Describe("Addoncontroller", func() {
 					})
 
 					It("Should create the sub in the manifestwork wiith the node selector", func() {
+						// Now re-load the manifestwork, should get updated
+						Eventually(func() bool {
+							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+							if reloadErr != nil {
+								return false
+							}
+
+							// get Subscription from the manifestwork
+							subMF := manifestWork.Spec.Workload.Manifests[0]
+							subObj, _, err := genericCodec.Decode(subMF.Raw, nil, nil)
+							Expect(err).NotTo(HaveOccurred())
+							var ok bool
+							operatorSubscription, ok = subObj.(*operatorsv1alpha1.Subscription)
+							if !ok {
+								return false
+							}
+							return operatorSubscription.Spec.Config != nil
+						}, timeout, interval).Should(BeTrue())
+
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
 						Expect(operatorSubscription.Spec.Config.Tolerations).To(Equal(nodePlacement.Tolerations))

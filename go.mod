@@ -1,6 +1,8 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.23.0
+go 1.23.6
+
+toolchain go1.23.9
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.2
@@ -9,22 +11,22 @@ require (
 	github.com/operator-framework/api v0.29.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
-	helm.sh/helm/v3 v3.17.1
+	helm.sh/helm/v3 v3.17.3
 	k8s.io/api v0.32.2
-	k8s.io/apiextensions-apiserver v0.32.1
+	k8s.io/apiextensions-apiserver v0.32.2
 	k8s.io/apimachinery v0.32.2
 	k8s.io/client-go v0.32.2
 	k8s.io/component-base v0.32.2
 	k8s.io/klog/v2 v2.130.1
-	open-cluster-management.io/addon-framework v0.11.1-0.20241217015347-99a171302bb4
-	open-cluster-management.io/api v0.15.1-0.20241120090202-cb7ce98ab874
+	open-cluster-management.io/addon-framework v1.0.0
+	open-cluster-management.io/api v1.0.0
 	open-cluster-management.io/config-policy-controller v0.15.0
-	open-cluster-management.io/sdk-go v0.15.0
+	open-cluster-management.io/sdk-go v1.0.0
 	sigs.k8s.io/controller-runtime v0.20.2
 )
 
 require (
-	cel.dev/expr v0.18.0 // indirect
+	cel.dev/expr v0.19.1 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -109,14 +111,14 @@ require (
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/term v0.31.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	golang.org/x/tools v0.29.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240826202546-f6391c0de4c7 // indirect
@@ -127,8 +129,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/apiserver v0.32.1 // indirect
-	k8s.io/kms v0.32.1 // indirect
+	k8s.io/apiserver v0.32.2 // indirect
+	k8s.io/kms v0.32.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect

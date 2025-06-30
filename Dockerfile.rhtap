@@ -46,6 +46,10 @@ WORKDIR /
 COPY --from=builder /workspace/controller .
 # VolSync helm charts
 COPY helmcharts/ helmcharts/
+# License
+RUN mkdir licenses/
+COPY LICENSE licenses/
+
 # uid/gid: nobody/nobody
 USER 65534:65534
 

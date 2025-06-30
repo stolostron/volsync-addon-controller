@@ -1,6 +1,8 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.23.0
+go 1.23.6
+
+toolchain go1.23.9
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.2
@@ -17,14 +19,14 @@ require (
 	k8s.io/component-base v0.32.2
 	k8s.io/klog/v2 v2.130.1
 	open-cluster-management.io/addon-framework v0.11.1-0.20241217015347-99a171302bb4
-	open-cluster-management.io/api v0.15.1-0.20241120090202-cb7ce98ab874
+	open-cluster-management.io/api v1.0.0
 	open-cluster-management.io/config-policy-controller v0.15.0
-	open-cluster-management.io/sdk-go v0.15.0
+	open-cluster-management.io/sdk-go v1.0.0
 	sigs.k8s.io/controller-runtime v0.20.2
 )
 
 require (
-	cel.dev/expr v0.18.0 // indirect
+	cel.dev/expr v0.19.1 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -127,8 +129,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/apiserver v0.32.1 // indirect
-	k8s.io/kms v0.32.1 // indirect
+	k8s.io/apiserver v0.32.2 // indirect
+	k8s.io/kms v0.32.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect

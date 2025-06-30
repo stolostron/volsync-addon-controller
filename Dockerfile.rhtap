@@ -30,6 +30,11 @@ FROM registry.redhat.io/ubi9/ubi-minimal:latest
 
 WORKDIR /
 COPY --from=builder /workspace/controller .
+
+# License
+RUN mkdir licenses/
+COPY LICENSE licenses/
+
 # uid/gid: nobody/nobody
 USER 65534:65534
 

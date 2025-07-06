@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
-	github.com/openshift/library-go v0.0.0-20250218150059-017e5b6cf27c // release-4.19
+	github.com/openshift/library-go v0.0.0-20250703084215-cd26fa5a3d88 // release-4.19
 	github.com/operator-framework/api v0.29.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
@@ -78,7 +78,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openshift/api v0.0.0-20250124212313-a770960d61e0 // indirect
+	github.com/openshift/api v0.0.0-20250320170726-75d64d71980b // indirect
 	github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v1.7.0 // indirect
@@ -137,3 +137,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+require k8s.io/kube-aggregator v0.32.1 // indirect

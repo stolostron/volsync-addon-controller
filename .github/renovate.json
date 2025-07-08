@@ -1,7 +1,5 @@
 {
-  "extends": [
-    "github>konflux-ci/mintmaker//config/renovate/renovate.json"
-  ],
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "addLabels": [
     "ok-to-test"
   ],
@@ -14,9 +12,7 @@
     "release-2.14"
   ],
   "rebaseWhen": "behind-base-branch",
-  "schedule": [
-    "before 8am on tuesday and thursday"
-  ],
+  "prConcurrentLimit": 0,
   "timezone": "America/New_York",
   "dependencyDashboard": true
 }

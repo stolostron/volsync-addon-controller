@@ -1,6 +1,8 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.23.0
+go 1.23.6
+
+toolchain go1.24.4
 
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
@@ -16,10 +18,10 @@ require (
 	k8s.io/client-go v0.32.3
 	k8s.io/component-base v0.32.3
 	k8s.io/klog/v2 v2.130.1
-	open-cluster-management.io/addon-framework v0.12.0
-	open-cluster-management.io/api v0.16.2
+	open-cluster-management.io/addon-framework v1.0.0
+	open-cluster-management.io/api v1.0.0
 	open-cluster-management.io/config-policy-controller v0.16.0
-	open-cluster-management.io/sdk-go v0.16.0
+	open-cluster-management.io/sdk-go v1.0.0
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 

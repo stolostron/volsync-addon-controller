@@ -8,7 +8,7 @@ require (
 	github.com/openshift/library-go v0.0.0-20250623173617-60108c9616bf // release-4.19
 	github.com/operator-framework/api v0.31.0
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	helm.sh/helm/v3 v3.17.3
 	k8s.io/api v0.32.3
 	k8s.io/apiextensions-apiserver v0.32.3

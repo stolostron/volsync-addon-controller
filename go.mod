@@ -1,6 +1,8 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.23.0
+go 1.24.0
+
+toolchain go1.24.4
 
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
@@ -10,10 +12,10 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	helm.sh/helm/v3 v3.17.3
-	k8s.io/api v0.32.3
+	k8s.io/api v0.33.2
 	k8s.io/apiextensions-apiserver v0.32.3
-	k8s.io/apimachinery v0.32.3
-	k8s.io/client-go v0.32.3
+	k8s.io/apimachinery v0.33.2
+	k8s.io/client-go v0.33.2
 	k8s.io/component-base v0.32.3
 	k8s.io/klog/v2 v2.130.1
 	open-cluster-management.io/addon-framework v0.12.0
@@ -63,7 +65,6 @@ require (
 	github.com/google/cel-go v0.22.1 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20250607225305-033d6d78b36a // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
@@ -78,8 +79,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openshift/api v0.0.0-20250613225054-29b831646a5f // indirect
-	github.com/openshift/client-go v0.0.0-20250603093317-900624865677 // indirect
+	github.com/openshift/api v0.0.0-20250710004639-926605d3338b // indirect
+	github.com/openshift/client-go v0.0.0-20250710075018-396b36f983ee // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v1.7.0 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
@@ -119,7 +120,7 @@ require (
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
-	golang.org/x/time v0.7.0 // indirect
+	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect

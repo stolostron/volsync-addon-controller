@@ -21,8 +21,8 @@ import (
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workapiv1 "open-cluster-management.io/api/work/v1"
 
-	//helmreleasev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/helmrelease/v1"
-	//appsubscriptionv1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/v1"
+	// helmreleasev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/helmrelease/v1"
+	// appsubscriptionv1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/v1"
 	policyv1beta1 "open-cluster-management.io/config-policy-controller/api/v1beta1"
 )
 
@@ -47,7 +47,7 @@ const (
 	// Defaults for ACM-2.13 Operator deploy
 	DefaultCatalogSource          = "redhat-operators"
 	DefaultCatalogSourceNamespace = "openshift-marketplace"
-	DefaultChannel                = "stable-0.13" // aligning ACM-2.14 with stable-0.13
+	DefaultChannel                = "stable-0.14" // aligning ACM-2.15 with stable-0.14
 	DefaultStartingCSV            = ""            // By default no starting CSV - will use the latest in the channel
 	DefaultInstallPlanApproval    = "Automatic"
 
@@ -78,7 +78,7 @@ const (
 
 const (
 	AnnotationVolSyncAddonDeployTypeOverride = "volsync-addon-deploy-type"
-	//AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
+	// AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
 	AnnotationVolSyncAddonDeployTypeOverrideOLMValue = "olm"
 
 	AnnotationHelmChartKey = "helm-chart-key"
@@ -186,7 +186,8 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 }
 
 func subHealthChecker(fieldResults []agent.FieldResult,
-	cluster *clusterv1.ManagedCluster, managedClusterAddOn *addonapiv1alpha1.ManagedClusterAddOn) error {
+	cluster *clusterv1.ManagedCluster, managedClusterAddOn *addonapiv1alpha1.ManagedClusterAddOn,
+) error {
 	// ManifestHelper will run the health check
 	mh := getManifestHelper(embedFS, nil /* not needed for heatlh check */, cluster, managedClusterAddOn)
 	return mh.subHealthCheck(fieldResults)

@@ -20,7 +20,7 @@ var _ = Describe("Helmutils", func() {
 
 	Context("Load embedded helm charts", func() {
 		// See test embedded charts in hack/testhelmcharts
-		// "stable-0.13" dir has an images.yaml with images specified
+		// "stable-0.14" dir has an images.yaml with images specified
 		// "dev" dir is the default we loaded (but did not load any default images)
 		//    - this would be similar to an upstream build where we have embedded charts
 		//      but do not find the OPERAND_IMAGE overrides in the mch image manifest configmap
@@ -31,8 +31,8 @@ var _ = Describe("Helmutils", func() {
 			chart, err := helmutils.GetEmbeddedChart(testDefaultHelmChartKey)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(chart).NotTo(BeNil())
-			// Our test Charts in "stable-0.13" should be volsync v0.13.x
-			Expect(chart.AppVersion()).To(ContainSubstring("0.13."))
+			// Our test Charts in "stable-0.14" should be volsync v0.14.x
+			Expect(chart.AppVersion()).To(ContainSubstring("0.14."))
 
 			// Test our other test embedded chart
 			oldChart, err := helmutils.GetEmbeddedChart(testOtherHelmChartKey)
@@ -76,7 +76,7 @@ var _ = Describe("Helmutils", func() {
 		var testNamespace string
 		var clusterIsOpenShift bool
 		var renderedObjs []runtime.Object
-		//var chartKey string
+		// var chartKey string
 
 		var chartValues map[string]interface{}
 

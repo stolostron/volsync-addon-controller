@@ -2,8 +2,8 @@ name: cron-update-volsync-helmcharts
 
 on:
   schedule:
-    - cron: '0 3 * * *'
-  workflow_dispatch: {}  # Useful for testing, but not necessary
+    - cron: "0 3 * * *"
+  workflow_dispatch: {} # Useful for testing, but not necessary
 
 jobs:
   update-volsync-helmcharts:
@@ -14,9 +14,14 @@ jobs:
       matrix:
         branches:
           #
-          # ACM 2.14 = VolSync 0.13
-          # NOTES: - ACM br main is ffwding to release-2.14 atm
+          # ACM 2.15 = VolSync 0.14
+          # NOTES: - ACM br main is ffwding to release-2.15 atm
           - ACM_BRANCH: "main"
+            VOLSYNC_BRANCH: "release-0.14" # VolSync release branch
+            ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.14" # this name matches the operator channel name
+          #
+          # ACM 2.14 = VolSync 0.13
+          - ACM_BRANCH: "release-2.14"
             VOLSYNC_BRANCH: "release-0.13" # VolSync release branch
             ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.13" # this name matches the operator channel name
           #

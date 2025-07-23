@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -588,7 +589,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						BeforeEach(func() {
 							// Update addonDeploymentConfig with nodePlacment and specific rbacProxy and volsync imgs
 							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement,
-								customRbacProxyImage, customVolSyncImage, nil)
+								customRbacProxyImage, customVolSyncImage, nil, nil)
 						})
 						AfterEach(func() {
 							cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
@@ -701,7 +702,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -776,7 +777,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -860,7 +861,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -924,6 +925,367 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					})
 				})
 
+				Context("When the addonDeployment config has resource requirements", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					customResourceRequirements := []addonv1alpha1.ContainerResourceRequirements{
+						{
+							ContainerID: "*:*:*", // Should match all containers
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("2500m"),
+									corev1.ResourceMemory: resource.MustParse("2Gi"),
+								},
+							},
+						},
+					}
+
+					BeforeEach(func() {
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", nil, customResourceRequirements)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+					})
+
+					Context("When the resource requirements apply to all containers", func() {
+						It("Should create the deployment with all containers using the specified resource reqs", func() {
+							// our addondeloymentconfig above should use *:*:*  - confirm
+							Expect(len(addonDeploymentConfig.Spec.ResourceRequirements)).To(Equal(1))
+							Expect(addonDeploymentConfig.Spec.ResourceRequirements[0].ContainerID).To(Equal("*:*:*"))
+
+							// Check that the resourceRequirements in the container match our expected
+							// re-load the manifestwork, should get updated eventually
+							Eventually(func() bool {
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+								if reloadErr != nil {
+									return false
+								}
+
+								// Find the deployment in the manifestwork
+								var err error
+								volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+									manifestWork, genericCodec)
+								if err != nil {
+									return false
+								}
+
+								// If the deployment resourcereqs have been set to our expected value then we're good
+								return volsyncDeployment.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Equal(
+									resource.MustParse("2500m"))
+							}, timeout, interval).Should(BeTrue())
+
+							// Full check to make sure resources match - all containers (manager and kube-rbac-proxy)
+							// should be updated with the resource requirements
+							commonResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[0].Resources
+							Expect(volsyncDeployment.Spec.Template.Spec.Containers[0].Resources).To(Equal(
+								commonResourceRequirements))
+							Expect(volsyncDeployment.Spec.Template.Spec.Containers[1].Resources).To(Equal(
+								commonResourceRequirements))
+						})
+					})
+
+					Context("When the resource requirements do not match any container", func() {
+						Context("Additionally, modify the addonDeploymentConfig after it has already "+
+							" created the customized deployments", func() {
+							It("Should use the default resource requirements from volsync", func() {
+								// Check that the resourceRequirements in the container match the original (all
+								// containers updated)
+								// re-load the manifestwork, should get updated eventually
+								Eventually(func() bool {
+									reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+									if reloadErr != nil {
+										return false
+									}
+
+									// Find the deployment in the manifestwork
+									var err error
+									volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+										manifestWork, genericCodec)
+									if err != nil {
+										return false
+									}
+
+									// If the deployment nodeSelector has been set, then it's been updated
+									// with our custom resource reqs
+									return volsyncDeployment.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Equal(
+										resource.MustParse("2500m"))
+								}, timeout, interval).Should(BeTrue())
+
+								// Now, update the addonDeploymentConfig so that the resource requirements do not match
+								// any container, and then wait for the deployment to get set back to volsync defaults
+								Eventually(func() error {
+									// Reload/Update the addonDeploymentConfig in loop in case any updates fail due to
+									// other controllers updating it
+									reloadErr := testK8sClient.Get(testCtx,
+										client.ObjectKeyFromObject(addonDeploymentConfig), addonDeploymentConfig)
+									if reloadErr != nil {
+										return reloadErr
+									}
+
+									noMatchResourceRequirements := []addonv1alpha1.ContainerResourceRequirements{
+										{
+											ContainerID: "statefulsets:*:*", // Should NOT match any containers
+											Resources: corev1.ResourceRequirements{
+												Limits: corev1.ResourceList{
+													corev1.ResourceCPU:    resource.MustParse("3000m"),
+													corev1.ResourceMemory: resource.MustParse("3Gi"),
+												},
+												Requests: corev1.ResourceList{
+													corev1.ResourceCPU:    resource.MustParse("2000m"),
+													corev1.ResourceMemory: resource.MustParse("2Gi"),
+												},
+											},
+										},
+										{
+											ContainerID: "deployments:shouldnotmatch:*", // Should NOT match any containers
+											Resources: corev1.ResourceRequirements{
+												Limits: corev1.ResourceList{
+													corev1.ResourceCPU:    resource.MustParse("3000m"),
+													corev1.ResourceMemory: resource.MustParse("3Gi"),
+												},
+												Requests: corev1.ResourceList{
+													corev1.ResourceCPU:    resource.MustParse("2000m"),
+													corev1.ResourceMemory: resource.MustParse("2Gi"),
+												},
+											},
+										},
+									}
+									addonDeploymentConfig.Spec.ResourceRequirements = noMatchResourceRequirements
+
+									return testK8sClient.Update(testCtx, addonDeploymentConfig)
+								}, timeout, interval).Should(Succeed())
+
+								// Now wait for the deployment to be updated - containers should get modified
+								// back to the volsync defaults
+								Eventually(func() bool {
+									reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+									if reloadErr != nil {
+										return false
+									}
+
+									// Find the deployment in the manifestwork
+									var err error
+									volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+										manifestWork, genericCodec)
+									if err != nil {
+										return false
+									}
+
+									// If the deployment resourcereqs have been set to our expected value then we're good
+									return volsyncDeployment.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Equal(
+										resource.MustParse("500m")) // Default value for volsync
+								}, timeout, interval).Should(BeTrue())
+
+								// Now check that the resource requirements are the correct values (the default
+								// values from VolSync)
+								rbacProxyResources := volsyncDeployment.Spec.Template.Spec.Containers[0].Resources
+								managerResources := volsyncDeployment.Spec.Template.Spec.Containers[1].Resources
+
+								Expect(rbacProxyResources.Limits.Cpu().Equal(resource.MustParse("500m"))).To(BeTrue())
+								Expect(rbacProxyResources.Limits.Memory().Equal(resource.MustParse("128Mi"))).To(BeTrue())
+
+								Expect(managerResources.Limits.Cpu().Equal(resource.MustParse("1000m"))).To(BeTrue())
+								Expect(managerResources.Limits.Memory().Equal(resource.MustParse("1Gi"))).To(BeTrue())
+							})
+						})
+					})
+
+					Context("When the resource requirements match one container", func() {
+						BeforeEach(func() {
+							// Update the addonDeploymentConfig so we have resource requirements that only match
+							// the manager container
+							Eventually(func() error {
+								// Reload/Update the addonDeploymentConfig in loop in case any updates fail due to
+								// other controllers updating it
+								reloadErr := testK8sClient.Get(testCtx,
+									client.ObjectKeyFromObject(addonDeploymentConfig), addonDeploymentConfig)
+								if reloadErr != nil {
+									return reloadErr
+								}
+
+								custResourceRequirements := []addonv1alpha1.ContainerResourceRequirements{
+									{
+										ContainerID: "statefulsets:*:*", // Should NOT match any containers
+										Resources: corev1.ResourceRequirements{
+											Limits: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("3000m"),
+												corev1.ResourceMemory: resource.MustParse("3Gi"),
+											},
+										},
+									},
+									{
+										ContainerID: "deployments:*:manager", // Should match only manager
+										Resources: corev1.ResourceRequirements{
+											Limits: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("4000m"),
+												corev1.ResourceMemory: resource.MustParse("4Gi"),
+											},
+											Requests: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("800m"),
+												corev1.ResourceMemory: resource.MustParse("2Gi"),
+											},
+										},
+									},
+								}
+								addonDeploymentConfig.Spec.ResourceRequirements = custResourceRequirements
+
+								return testK8sClient.Update(testCtx, addonDeploymentConfig)
+							}, timeout, interval).Should(Succeed())
+						})
+
+						It("Should create the deployment with the specific container using the resource reqs", func() {
+							// Check that the resourceRequirements in the container match our expected
+							// re-load the manifestwork, should get updated eventually
+							Eventually(func() bool {
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+								if reloadErr != nil {
+									return false
+								}
+
+								// Find the deployment in the manifestwork
+								var err error
+								volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+									manifestWork, genericCodec)
+								if err != nil {
+									return false
+								}
+
+								// If the deployment resourcereqs for manager (container 1) have been set to
+								// our expected value then we're good
+								return volsyncDeployment.Spec.Template.Spec.Containers[1].Resources.Limits.Cpu().Equal(
+									resource.MustParse("4000m"))
+							}, timeout, interval).Should(BeTrue())
+
+							// Full check to make sure resources match - manager container
+							// should be updated with the matching resource requirements
+							custResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[1].Resources
+							managerResources := volsyncDeployment.Spec.Template.Spec.Containers[1].Resources
+							Expect(managerResources).To(Equal(custResourceRequirements))
+
+							// Rbac-proxy container should use defaults
+							rbacProxyResources := volsyncDeployment.Spec.Template.Spec.Containers[0].Resources
+							Expect(rbacProxyResources.Limits.Cpu().Equal(resource.MustParse("500m"))).To(BeTrue())
+							Expect(rbacProxyResources.Limits.Memory().Equal(resource.MustParse("128Mi"))).To(BeTrue())
+						})
+					})
+
+					Context("When multiple resource requirements match containers", func() {
+						BeforeEach(func() {
+							// Update the addonDeploymentConfig so we have multiple resource requirements that match
+							// the containers
+							Eventually(func() error {
+								// Reload/Update the addonDeploymentConfig in loop in case any updates fail due to
+								// other controllers updating it
+								reloadErr := testK8sClient.Get(testCtx,
+									client.ObjectKeyFromObject(addonDeploymentConfig), addonDeploymentConfig)
+								if reloadErr != nil {
+									return reloadErr
+								}
+
+								custResourceRequirements := []addonv1alpha1.ContainerResourceRequirements{
+									// all these resource requirements should be processed in order
+									// with the 1st one taking precedence
+									// That means: the rr at [1] should match all containers
+									// But rr at [0] matches only manager and takes precedence
+									// So [1] will be applied to kube-rbac-proxy and [0] applied to manager
+									{
+										ContainerID: "deployments:volsync:manager", // Should match only manager
+										Resources: corev1.ResourceRequirements{
+											Limits: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("8000m"),
+												corev1.ResourceMemory: resource.MustParse("8Gi"),
+											},
+											Requests: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("1200m"),
+												corev1.ResourceMemory: resource.MustParse("3Gi"),
+											},
+										},
+									},
+									{
+										ContainerID: "deployments:*:*", // Should match all containers
+										Resources: corev1.ResourceRequirements{
+											Limits: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("2500m"),
+												corev1.ResourceMemory: resource.MustParse("2Gi"),
+											},
+										},
+									},
+								}
+								addonDeploymentConfig.Spec.ResourceRequirements = custResourceRequirements
+
+								return testK8sClient.Update(testCtx, addonDeploymentConfig)
+							}, timeout, interval).Should(Succeed())
+						})
+
+						It("Should create the deployment with containers using the expected resource reqs", func() {
+							// Check that the resourceRequirements in the container match our expected
+							// re-load the manifestwork, should get updated eventually
+							Eventually(func() bool {
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
+								if reloadErr != nil {
+									return false
+								}
+
+								// Find the deployment in the manifestwork
+								var err error
+								volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
+									manifestWork, genericCodec)
+								if err != nil {
+									return false
+								}
+
+								// If the deployment resourcereqs for rbac-proxy (container 0) have been set to
+								// our expected value then we're good
+								return volsyncDeployment.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Equal(
+									resource.MustParse("2500m"))
+							}, timeout, interval).Should(BeTrue())
+
+							// Full check to make sure resources match
+							// Rbac-proxy container should use expected values (see above for details)
+							custCommonResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[1].Resources
+							rbacProxyResources := volsyncDeployment.Spec.Template.Spec.Containers[0].Resources
+							Expect(rbacProxyResources).To(Equal(custCommonResourceRequirements))
+
+							// manager container should be updated with the matching resource requirements
+							custMgrResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[0].Resources
+							managerResources := volsyncDeployment.Spec.Template.Spec.Containers[1].Resources
+							Expect(managerResources).To(Equal(custMgrResourceRequirements))
+						})
+					})
+
+				})
+
 				Context("When the addonDeployment config has registry overrides", func() {
 					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
 					var customRegistries []addonv1alpha1.ImageMirror
@@ -961,7 +1323,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						logger.Info("setting customRegistries in addondeploymentconfig",
 							"customRegistries", customRegistries)
 
-						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", customRegistries)
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", customRegistries, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1048,7 +1410,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							"customRegistries", customRegistries)
 
 						addonDeploymentConfig = createAddonDeploymentConfig(nil,
-							customVolSyncRbacProxyImage, customVolSyncImage, customRegistries)
+							customVolSyncRbacProxyImage, customVolSyncImage, customRegistries, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1151,7 +1513,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 
-					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil)
+					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil, nil)
 
 					// Update the ClusterManagementAddOn before we create it to set a default deployment config
 					clusterManagementAddon.Spec.SupportedConfigs[0].DefaultConfig = &addonv1alpha1.ConfigReferent{
@@ -1352,7 +1714,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1916,7 +2278,8 @@ func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
 func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement,
 	rbacProxyImage string,
 	volSyncImage string,
-	registries []addonv1alpha1.ImageMirror) *addonv1alpha1.AddOnDeploymentConfig {
+	registries []addonv1alpha1.ImageMirror,
+	resourceRequirements []addonv1alpha1.ContainerResourceRequirements) *addonv1alpha1.AddOnDeploymentConfig {
 	// Create a ns to host the addondeploymentconfig
 	// These can be accessed globally, so could be in the mgd cluster namespace
 	// but, creating a new ns for each one to keep the tests simple
@@ -1958,6 +2321,10 @@ func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement,
 
 	if registries != nil {
 		customAddonDeploymentConfig.Spec.Registries = registries
+	}
+
+	if resourceRequirements != nil {
+		customAddonDeploymentConfig.Spec.ResourceRequirements = resourceRequirements
 	}
 
 	Expect(testK8sClient.Create(testCtx, customAddonDeploymentConfig)).To(Succeed())

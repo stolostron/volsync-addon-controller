@@ -129,7 +129,7 @@ require (
 	k8s.io/apiserver v0.33.3 // indirect
 	k8s.io/kms v0.33.3 // indirect
 	k8s.io/kube-aggregator v0.33.3 // indirect
-	k8s.io/kube-openapi v0.0.0-20250701173324-9bd5c66d9911 // indirect
+	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.33.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
@@ -144,4 +144,5 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.2.0 // indirect
 )

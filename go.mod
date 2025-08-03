@@ -72,7 +72,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openshift/api v0.0.0-20231218131639-7a5aa77cc72d // indirect
+	github.com/openshift/api c7fbd085e10c // indirect
 	github.com/openshift/client-go v0.0.0-20231218140158-47f6d749b9d9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v1.3.0 // indirect

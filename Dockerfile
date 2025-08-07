@@ -1,5 +1,5 @@
 # Build the addon controller binary
-FROM registry.ci.openshift.org/stolostron/builder:go1.23-linux AS builder
+FROM registry.ci.openshift.org/stolostron/builder:go1.24-linux AS builder
 USER root
 
 WORKDIR /workspace
@@ -20,7 +20,7 @@ ENV GOFLAGS=-mod=readonly
 ENV CGO_ENABLED=1
 ARG versionFromGit_arg="(unknown)"
 ARG commitFromGit_arg="(unknown)"
-RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
+RUN GOOS=linux GO111MODULE=on go build -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
 # Final container
 FROM registry.access.redhat.com/ubi9-minimal:latest

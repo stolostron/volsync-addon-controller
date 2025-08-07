@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"fmt"
+	"regexp"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -97,12 +99,14 @@ func (mh *manifestHelperHelmDeploy) subHealthCheck(fieldResults []agent.FieldRes
 func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactory.Values) ([]runtime.Object, error) {
 	installNamespace := mh.getInstallNamespace()
 
+	// Chart will include default values from the values.yaml
 	chart, err := helmutils.GetEmbeddedChart(mh.getChartKey())
 	if err != nil {
 		klog.ErrorS(err, "unable to load chart")
 		return nil, err
 	}
 
+	// Render manifests, using chart & default values.yaml and then applying our custom values
 	return helmutils.RenderManifestsFromChart(chart, installNamespace,
 		mh.cluster, mh.clusterIsOpenShift, values, genericCodec)
 }
@@ -232,12 +236,13 @@ func (mh *manifestHelperHelmDeploy) getChartKey() string {
 }
 
 // Updates values to make sure they match the correct names volsync expects in values.yaml
-// (for example addon-framework uses "Tolerations" and "NodeSelectors" where Volsync values.yaml
-//
-//	expects "tolerations" and "nodeSelectors")
+// (for example addon-framework uses "Tolerations" and "NodeSelectors" where Volsync values.yaml expects
+// "tolerations" and "nodeSelectors")
 func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfactory.Values) {
 	convertValuesMapKey(values, "Tolerations", "tolerations")
 	convertValuesMapKey(values, "NodeSelector", "nodeSelector")
+
+	updateVolSyncResourceRequirements(values)
 
 	// Convert env vars indicating images we want to use to the values expected in the volsync
 	// helm chart values.yaml
@@ -272,6 +277,49 @@ func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfact
 			}
 		}
 	}
+}
+
+// Get resource requirements from config
+// (see: https://github.com/stolostron/foundation-docs/blob/main/addon/addon-resource-requirements.md)
+// This function will convert them into the values.yaml format expected by VolSync
+func updateVolSyncResourceRequirements(values addonfactory.Values) {
+	rrListRaw, ok := values["ResourceRequirements"]
+	if !ok {
+		// No resource requirements, use defaults
+		return
+	}
+
+	rrList, ok := rrListRaw.([]addonfactory.RegexResourceRequirements)
+	if !ok {
+		klog.Error("Not able to parse resource requirements from config - ignoring")
+		return
+	}
+
+	// Range backwards over the list so first one is applied last (and takes precedence)
+	for _, rr := range slices.Backward(rrList) {
+		// Check if the "manager" container should be updated (this is the volsync controller container itself)
+		matchesManager, err := regexp.MatchString(rr.ContainerIDRegex, "deployments:volsync:manager")
+		if err != nil {
+			klog.ErrorS(err, "unable to match resource requirements by regex for volsync manager container")
+		} else if matchesManager {
+			// klog.InfoS("updating volsync manager container with resource requirements",
+			//	"resources", rr.Resources)
+			values["resources"] = rr.Resources
+		}
+
+		// Check if the "kube-rbac-proxy" container should be updated
+		matchesProxy, err := regexp.MatchString(rr.ContainerIDRegex, "deployments:volsync:kube-rbac-proxy")
+		if err != nil {
+			klog.ErrorS(err, "unable to match resource requirements by regex for volsync kube-rbac-proxy container")
+		} else if matchesProxy {
+			// klog.InfoS("updating volsync kube-rbac-proxy container with resource requirements",
+			// 	"resources", rr.Resources)
+			values["kube-rbac-proxy-resources"] = rr.Resources
+		}
+	}
+
+	// Clean up ResourceRequirements from custom values as it's not used directly by VolSync
+	delete(values, "ResourceRequirements")
 }
 
 // If oldKey exists in map, copy the value to newKey and remove oldKey

@@ -3,7 +3,6 @@ package controllers
 import (
 	"fmt"
 	"regexp"
-	"slices"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -295,8 +294,8 @@ func updateVolSyncResourceRequirements(values addonfactory.Values) {
 		return
 	}
 
-	// Range backwards over the list so first one is applied last (and takes precedence)
-	for _, rr := range slices.Backward(rrList) {
+	// Range over the list so we apply from first to last (and last takes precedence)
+	for _, rr := range rrList {
 		// Check if the "manager" container should be updated (this is the volsync controller container itself)
 		matchesManager, err := regexp.MatchString(rr.ContainerIDRegex, "deployments:volsync:manager")
 		if err != nil {

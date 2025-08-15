@@ -1215,10 +1215,19 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 								custResourceRequirements := []addonv1alpha1.ContainerResourceRequirements{
 									// all these resource requirements should be processed in order
-									// with the 1st one taking precedence
-									// That means: the rr at [1] should match all containers
-									// But rr at [0] matches only manager and takes precedence
-									// So [1] will be applied to kube-rbac-proxy and [0] applied to manager
+									// with the last match taking precedence
+									// That means: the rr at [0] should match all containers
+									// But rr at [1] matches only manager and takes precedence
+									// So [0] will be applied to kube-rbac-proxy and [1] applied to manager
+									{
+										ContainerID: "deployments:*:*", // Should match all containers
+										Resources: corev1.ResourceRequirements{
+											Limits: corev1.ResourceList{
+												corev1.ResourceCPU:    resource.MustParse("2500m"),
+												corev1.ResourceMemory: resource.MustParse("2Gi"),
+											},
+										},
+									},
 									{
 										ContainerID: "deployments:volsync:manager", // Should match only manager
 										Resources: corev1.ResourceRequirements{
@@ -1229,15 +1238,6 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 											Requests: corev1.ResourceList{
 												corev1.ResourceCPU:    resource.MustParse("1200m"),
 												corev1.ResourceMemory: resource.MustParse("3Gi"),
-											},
-										},
-									},
-									{
-										ContainerID: "deployments:*:*", // Should match all containers
-										Resources: corev1.ResourceRequirements{
-											Limits: corev1.ResourceList{
-												corev1.ResourceCPU:    resource.MustParse("2500m"),
-												corev1.ResourceMemory: resource.MustParse("2Gi"),
 											},
 										},
 									},
@@ -1273,12 +1273,12 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 							// Full check to make sure resources match
 							// Rbac-proxy container should use expected values (see above for details)
-							custCommonResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[1].Resources
+							custCommonResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[0].Resources
 							rbacProxyResources := volsyncDeployment.Spec.Template.Spec.Containers[0].Resources
 							Expect(rbacProxyResources).To(Equal(custCommonResourceRequirements))
 
 							// manager container should be updated with the matching resource requirements
-							custMgrResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[0].Resources
+							custMgrResourceRequirements := addonDeploymentConfig.Spec.ResourceRequirements[1].Resources
 							managerResources := volsyncDeployment.Spec.Template.Spec.Containers[1].Resources
 							Expect(managerResources).To(Equal(custMgrResourceRequirements))
 						})

@@ -505,7 +505,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						}
 
 						BeforeEach(func() {
-							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 						})
 						AfterEach(func() {
 							cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
@@ -609,7 +609,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -685,7 +685,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -770,7 +770,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -867,7 +867,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 
-					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil)
+					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil, nil)
 
 					// Update the ClusterManagementAddOn before we create it to set a default deployment config
 					clusterManagementAddon.Spec.SupportedConfigs[0].DefaultConfig = &addonv1alpha1.ConfigReferent{
@@ -1078,7 +1078,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{

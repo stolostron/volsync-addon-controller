@@ -10,11 +10,11 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
 	helm.sh/helm/v3 v3.18.5
-	k8s.io/api v0.33.3
+	k8s.io/api v0.33.4
 	k8s.io/apiextensions-apiserver v0.33.3
-	k8s.io/apimachinery v0.33.3
-	k8s.io/client-go v0.33.3
-	k8s.io/component-base v0.33.3
+	k8s.io/apimachinery v0.33.4
+	k8s.io/client-go v0.33.4
+	k8s.io/component-base v0.33.4
 	k8s.io/klog/v2 v2.130.1
 	open-cluster-management.io/addon-framework v1.0.1
 	open-cluster-management.io/api v1.0.0

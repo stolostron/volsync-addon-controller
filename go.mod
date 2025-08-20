@@ -11,7 +11,7 @@ require (
 	github.com/spf13/pflag v1.0.7
 	helm.sh/helm/v3 v3.18.5
 	k8s.io/api v0.33.4
-	k8s.io/apiextensions-apiserver v0.33.3
+	k8s.io/apiextensions-apiserver v0.33.4
 	k8s.io/apimachinery v0.33.4
 	k8s.io/client-go v0.33.4
 	k8s.io/component-base v0.33.4
@@ -123,8 +123,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/apiserver v0.33.3 // indirect
-	k8s.io/kms v0.33.3 // indirect
+	k8s.io/apiserver v0.33.4 // indirect
+	k8s.io/kms v0.33.4 // indirect
 	k8s.io/kube-aggregator v0.33.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20250701173324-9bd5c66d9911 // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397

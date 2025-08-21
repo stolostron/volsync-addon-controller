@@ -1,5 +1,5 @@
 # Build the addon controller binary
-FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.24 AS builder
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.24@sha256:b91431604c435f3cabec20ddb653c0537c8ba8097ada57960d54a1266f95a7c3 AS builder
 USER root
 
 WORKDIR /workspace
@@ -25,7 +25,7 @@ ARG commitFromGit_arg="(unknown)"
 RUN GO111MODULE=on go build -tags strictfipsruntime -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
 # Final container
-FROM registry.redhat.io/ubi9/ubi-minimal:latest
+FROM registry.redhat.io/ubi9/ubi-minimal:latest@sha256:2f06ae0e6d3d9c4f610d32c480338eef474867f435d8d28625f2985e8acde6e8
 
 # RUN microdnf -y --refresh update && \
 #     microdnf clean all

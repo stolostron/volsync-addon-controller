@@ -37,6 +37,10 @@ spec:
     - linux/arm64
   - name: dockerfile
     value: Dockerfile.rhtap
+  - name: build-args
+    value:
+    - "versionFromGit_arg=2.15"
+    - "commitFromGit_arg={{revision}}"
   - name: path-context
     value: .
   pipelineRef:

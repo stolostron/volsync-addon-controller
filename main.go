@@ -22,9 +22,11 @@ import (
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
 )
 
-var versionFromGit = "0.0.0"
-var commitFromGit = ""
-var embeddedChartsDir = controllers.DefaultEmbeddedChartsDir
+var (
+	versionFromGit    = "0.0.0"
+	commitFromGit     = ""
+	embeddedChartsDir = controllers.DefaultEmbeddedChartsDir
+)
 
 func main() {
 	pflag.CommandLine.SetNormalizeFunc(utilflag.WordSepNormalizeFunc)
@@ -35,6 +37,7 @@ func main() {
 
 	command := newCommand()
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
+	// The controllercmd builder will also print out the version info when we start it
 
 	if err := command.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -54,11 +57,7 @@ func newCommand() *cobra.Command {
 		},
 	}
 
-	if v := getVersion().String(); len(v) == 0 {
-		cmd.Version = "<unknown>"
-	} else {
-		cmd.Version = v
-	}
+	cmd.Version = getVersionAsString()
 
 	cmd.AddCommand(newControllerCommand())
 
@@ -120,4 +119,24 @@ func getVersion() version.Info {
 		GitCommit:  commitFromGit,
 		GitVersion: versionFromGit,
 	}
+}
+
+// Format version.Info as string
+func getVersionAsString() string {
+	versionAsString := "<unknown>"
+
+	v := getVersion()
+
+	if v.String() != "" {
+		versionAsString = v.String()
+	}
+
+	if gitCommit := v.GitCommit; gitCommit != "" {
+		if len(gitCommit) > 7 {
+			gitCommit = gitCommit[:7]
+		}
+		versionAsString = versionAsString + "-" + gitCommit
+	}
+
+	return versionAsString
 }

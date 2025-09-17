@@ -31,7 +31,8 @@ FROM registry.redhat.io/ubi9/ubi-minimal:latest@sha256:2f06ae0e6d3d9c4f610d32c48
 #     microdnf clean all
 
 LABEL \
-    name="volsync-addon-controller" \
+    name="rhacm2/acm-volsync-addon-controller-rhel9" \
+    cpe="cpe:/a:redhat:acm:2.13::el9" \
     com.redhat.component="volsync-addon-controller" \
     description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
     operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \

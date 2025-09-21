@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.38.2
-	github.com/openshift/library-go v0.0.0-20250911074910-e2c18d5abc3a // release-4.19
+	github.com/openshift/library-go v0.0.0-20250919173008-7fa221ceac52 // release-4.19
 	github.com/operator-framework/api v0.34.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10

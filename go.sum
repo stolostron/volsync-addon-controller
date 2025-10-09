@@ -184,8 +184,8 @@ github.com/openshift/api v0.0.0-20251002150504-230d0e045316 h1:p3AsHallQSuqx/8qY
 github.com/openshift/api v0.0.0-20251002150504-230d0e045316/go.mod h1:SPLf21TYPipzCO67BURkCfK6dcIIxx0oNRVWaOyRcXM=
 github.com/openshift/client-go v0.0.0-20250710075018-396b36f983ee h1:tOtrrxfDEW8hK3eEsHqxsXurq/D6LcINGfprkQC3hqY=
 github.com/openshift/client-go v0.0.0-20250710075018-396b36f983ee/go.mod h1:zhRiYyNMk89llof2qEuGPWPD+joQPhCRUc2IK0SB510=
-github.com/openshift/library-go v0.0.0-20251003131124-f838eb5c6019 h1:kn5V9wcW+FuE/0WcXHXTTqPmKBuEnWHdQ+gMII+rUFU=
-github.com/openshift/library-go v0.0.0-20251003131124-f838eb5c6019/go.mod h1:2812XAOu30VBDzkZ9ShKa5F++VUsf8kDZfl06nH5QRU=
+github.com/openshift/library-go v0.0.0-20251009113448-d9058b4d4f0e h1:ai7lrmV94v4w+89wuXcU+wsz41T3Q71bfwRtuDykZK0=
+github.com/openshift/library-go v0.0.0-20251009113448-d9058b4d4f0e/go.mod h1:vdZXp0uUboiXa/1IlRvVEGTr+e5iA6wCWoXLopgkeKk=
 github.com/operator-framework/api v0.34.0 h1:REiEaYhG1CWmDoajdcAdZqtgoljWG+ixMY59vUX5pFI=
 github.com/operator-framework/api v0.34.0/go.mod h1:eGncUNIYvWtfGCCKmLzGXvoi3P0TDf3Yd/Z0Sn9E6SQ=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=

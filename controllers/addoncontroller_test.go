@@ -129,7 +129,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 		Context("When a ManagedClusterAddon for this addon is created", func() {
 			var mcAddon *addonv1alpha1.ManagedClusterAddOn
-			var manifestWork *workv1.ManifestWork
+			var manifestWorkList []*workv1.ManifestWork
 			BeforeEach(func() {
 				// ManagedClusterAddon for the mgd cluster
 				mcAddon = &addonv1alpha1.ManagedClusterAddOn{
@@ -160,26 +160,15 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					return nil
 				}, timeout, interval).Should(Succeed())
 
-				manifestWork = &workv1.ManifestWork{}
 				// The controller should create a ManifestWork for this ManagedClusterAddon
 				Eventually(func() bool {
-					allMwList := &workv1.ManifestWorkList{}
-					Expect(testK8sClient.List(testCtx, allMwList,
-						client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+					foundVsManifests := false
+					manifestWorkList, foundVsManifests = getVolSyncManifestWorks(testManagedCluster.GetName())
 
-					for _, mw := range allMwList.Items {
-						// addon-framework now creates manifestwork with "-0" prefix (to allow for
-						// creating multiple manifestworks if the content is large - will not be the case
-						// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
-						if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-							manifestWork = &mw
-							return true /* found the manifestwork */
-						}
-					}
-					return false
+					return foundVsManifests
 				}, timeout, interval).Should(BeTrue())
 
-				Expect(manifestWork).ToNot(BeNil())
+				Expect(len(manifestWorkList) >= 1).To(BeTrue())
 			})
 
 			testMgdClusterIsOpenShift := []bool{
@@ -226,17 +215,22 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					})
 
 					JustBeforeEach(func() {
+						totalMWManifests := []workv1.Manifest{}
+						for i := range manifestWorkList {
+							totalMWManifests = append(totalMWManifests, manifestWorkList[i].Spec.Workload.Manifests...)
+						}
+
 						if mgdClusterIsOpenShift {
 							// 2 additional objects in manifest for OpenShift clusters,
 							// an OperatorPolicy to make sure OLM operator is uninstalled in the mgd cluster
 							// and also an aggregateclusterrole for the operatorpolicy
-							Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(15))
+							Expect(len(totalMWManifests)).To(Equal(15))
 						} else {
-							Expect(len(manifestWork.Spec.Workload.Manifests)).To(Equal(13))
+							Expect(len(totalMWManifests)).To(Equal(13))
 						}
 
 						// Get objects from our manifest that are not part of the helm chart
-						for _, m := range manifestWork.Spec.Workload.Manifests {
+						for _, m := range totalMWManifests {
 							obj, _, err := genericCodec.Decode(m.Raw, nil, nil)
 							Expect(err).NotTo(HaveOccurred())
 							objKind := obj.GetObjectKind().GroupVersionKind().Kind
@@ -464,17 +458,19 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					Expect(testK8sClient.List(testCtx, allMwList,
 						client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
 
-					if len(allMwList.Items) != 1 {
-						// it's either created another manifestwork (bad) or deleted the existing one (also bad)
-						return false
+					// Assuming all the manifestworks are for volysnc here (which they will be for this test)
+					totalVSManifests := 0
+					for _, mw := range allMwList.Items {
+						totalVSManifests += len(mw.Spec.Workload.Manifests)
 					}
 
+					// The first manifestwork should be the one we pre-created with the old name
 					myMw := &allMwList.Items[0]
 					Expect(myMw.GetName()).To(Equal(fakeOlderMw.GetName()))
 
 					// Default test above simulates an openshift cluster,
 					// so expect 15 manifests in the manifestwork
-					return len(myMw.Spec.Workload.Manifests) == 15
+					return totalVSManifests == 15
 				}, timeout, interval).Should(BeTrue())
 			})
 		})
@@ -482,7 +478,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 		Describe("AddonDeloyment Config tests (overrides for things like node selector/tolerations/images)", func() {
 			Context("When a ManagedClusterAddOn is created", func() {
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
-				var manifestWork *workv1.ManifestWork
+				var manifestWorkList []*workv1.ManifestWork
 				//				var operatorSubscription *operatorsv1alpha1.Subscription
 
 				var volsyncDeployment *appsv1.Deployment
@@ -519,30 +515,20 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						return nil
 					}, timeout, interval).Should(Succeed())
 
-					manifestWork = &workv1.ManifestWork{}
 					// The controller should create a ManifestWork for this ManagedClusterAddon
 					Eventually(func() bool {
-						allMwList := &workv1.ManifestWorkList{}
-						Expect(testK8sClient.List(testCtx, allMwList,
-							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
+						foundVsManifests := false
 
-						for _, mw := range allMwList.Items {
-							// addon-framework now creates manifestwork with "-0" prefix (to allow for
-							// creating multiple manifestworks if the content is large - will not be the case
-							// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
-							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-								manifestWork = &mw
-								return true /* found the manifestwork */
-							}
-						}
-						return false
+						// The VS manifests may get split up into multiple manifestworks, so we may need to retry
+						// if it hasn't created all of them yet
+						manifestWorkList, foundVsManifests = getVolSyncManifestWorks(testManagedCluster.GetName())
+
+						return foundVsManifests
 					}, timeout, interval).Should(BeTrue())
 
-					Expect(manifestWork).ToNot(BeNil())
-
-					// Find the deployment in the manifestwork
+					// Find the deployment in the manifestworks
 					var err error
-					volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(manifestWork, genericCodec)
+					volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(manifestWorkList, genericCodec)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(volsyncDeployment.GetNamespace()).To(Equal(expectedVolSyncNamespace))
 					Expect(volsyncDeployment.GetName()).To(Equal("volsync"))
@@ -643,31 +629,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							// Now reload the manifestwork, it should eventually be updated with the nodeselector
 							// and tolerations
 
-							var manifestWorkReloaded *workv1.ManifestWork
+							//var manifestWorkReloaded *workv1.ManifestWork
 							var volsyncDeploymentReloaded *appsv1.Deployment
 
 							Eventually(func() bool {
-								allMwList := &workv1.ManifestWorkList{}
-								Expect(testK8sClient.List(testCtx, allMwList,
-									client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-								for _, mw := range allMwList.Items {
-									// addon-framework now creates manifestwork with "-0" prefix (to allow for
-									// creating multiple manifestworks if the content is large - will not be the case
-									// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
-									if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-										manifestWorkReloaded = &mw
-										break
-									}
-								}
-								if manifestWorkReloaded == nil {
+								manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+								if !foundVsManifests {
 									return false
 								}
-
-								// Find the deployment in the manifestwork
 								var err error
-								volsyncDeploymentReloaded, err = getVolSyncDeploymentFromManifestWork(
-									manifestWorkReloaded, genericCodec)
+								volsyncDeploymentReloaded, err = getVolSyncDeploymentFromManifestWorkList(
+									manifestWorkListReloaded, genericCodec)
 								if err != nil {
 									return false
 								}
@@ -739,17 +711,16 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							return nil
 						}, timeout, interval).Should(Succeed())
 
-						// Now re-load the manifestwork, should get updated
+						// Now re-load the manifestworks, should get updated
 						Eventually(func() bool {
-							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-							if reloadErr != nil {
+							manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return false
 							}
-
-							// Find the deployment in the manifestwork
 							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
+							// Find the deployment in the manifestworks
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkListReloaded, genericCodec)
 							if err != nil {
 								return false
 							}
@@ -814,17 +785,16 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							return nil
 						}, timeout, interval).Should(Succeed())
 
-						// Now re-load the manifestwork, should get updated
+						// Now re-load the manifestworks should get updated
 						Eventually(func() bool {
-							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-							if reloadErr != nil {
+							manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return false
 							}
-
-							// Find the deployment in the manifestwork
+							// Find the deployment in the manifestworks
 							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkListReloaded, genericCodec)
 							if err != nil {
 								return false
 							}
@@ -900,15 +870,15 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 						// Now re-load the manifestwork, should get updated
 						Eventually(func() bool {
-							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-							if reloadErr != nil {
+							manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return false
 							}
 
 							// Find the deployment in the manifestwork
 							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkListReloaded, genericCodec)
 							if err != nil {
 								return false
 							}
@@ -987,15 +957,15 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							// Check that the resourceRequirements in the container match our expected
 							// re-load the manifestwork, should get updated eventually
 							Eventually(func() bool {
-								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-								if reloadErr != nil {
+								manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+								if !foundVsManifests {
 									return false
 								}
 
-								// Find the deployment in the manifestwork
+								// Find the deployment in the manifestworks
 								var err error
-								volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-									manifestWork, genericCodec)
+								volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+									manifestWorkListReloaded, genericCodec)
 								if err != nil {
 									return false
 								}
@@ -1021,17 +991,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							It("Should use the default resource requirements from volsync", func() {
 								// Check that the resourceRequirements in the container match the original (all
 								// containers updated)
-								// re-load the manifestwork, should get updated eventually
+								// re-load the manifestworks, should get updated eventually
 								Eventually(func() bool {
-									reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-									if reloadErr != nil {
+									manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+									if !foundVsManifests {
 										return false
 									}
 
-									// Find the deployment in the manifestwork
+									// Find the deployment in the manifestworks
 									var err error
-									volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-										manifestWork, genericCodec)
+									volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+										manifestWorkListReloaded, genericCodec)
 									if err != nil {
 										return false
 									}
@@ -1089,15 +1059,15 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 								// Now wait for the deployment to be updated - containers should get modified
 								// back to the volsync defaults
 								Eventually(func() bool {
-									reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-									if reloadErr != nil {
+									manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+									if !foundVsManifests {
 										return false
 									}
 
-									// Find the deployment in the manifestwork
+									// Find the deployment in the manifestworks
 									var err error
-									volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-										manifestWork, genericCodec)
+									volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+										manifestWorkListReloaded, genericCodec)
 									if err != nil {
 										return false
 									}
@@ -1166,17 +1136,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 						It("Should create the deployment with the specific container using the resource reqs", func() {
 							// Check that the resourceRequirements in the container match our expected
-							// re-load the manifestwork, should get updated eventually
+							// re-load the manifestworks, should get updated eventually
 							Eventually(func() bool {
-								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-								if reloadErr != nil {
+								manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+								if !foundVsManifests {
 									return false
 								}
 
-								// Find the deployment in the manifestwork
+								// Find the deployment in the manifestworks
 								var err error
-								volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-									manifestWork, genericCodec)
+								volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+									manifestWorkListReloaded, genericCodec)
 								if err != nil {
 									return false
 								}
@@ -1250,17 +1220,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 						It("Should create the deployment with containers using the expected resource reqs", func() {
 							// Check that the resourceRequirements in the container match our expected
-							// re-load the manifestwork, should get updated eventually
+							// re-load the manifestworks should get updated eventually
 							Eventually(func() bool {
-								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-								if reloadErr != nil {
+								manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+								if !foundVsManifests {
 									return false
 								}
 
-								// Find the deployment in the manifestwork
+								// Find the deployment in the manifestworks
 								var err error
-								volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-									manifestWork, genericCodec)
+								volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+									manifestWorkListReloaded, genericCodec)
 								if err != nil {
 									return false
 								}
@@ -1360,17 +1330,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							return nil
 						}, timeout, interval).Should(Succeed())
 
-						// Now re-load the manifestwork, should get updated
+						// Now re-load the manifestworks, should get updated
 						Eventually(func() bool {
-							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-							if reloadErr != nil {
+							manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
+							// Find the deployment in the manifestworks
 							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkListReloaded, genericCodec)
 							if err != nil {
 								return false
 							}
@@ -1447,17 +1417,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							return nil
 						}, timeout, interval).Should(Succeed())
 
-						// Now re-load the manifestwork, should get updated
+						// Now re-load the manifestworks, should get updated
 						Eventually(func() bool {
-							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-							if reloadErr != nil {
+							manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
+							// Find the deployment in the manifestworks
 							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkListReloaded, genericCodec)
 							if err != nil {
 								return false
 							}
@@ -1485,7 +1455,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 				var defaultAddonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
 				var defaultNodePlacement *addonv1alpha1.NodePlacement
-				var manifestWork *workv1.ManifestWork
+				var manifestWorkList []*workv1.ManifestWork
 
 				var volsyncDeployment *appsv1.Deployment
 
@@ -1636,31 +1606,18 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						return nil
 					}, timeout, interval).Should(Succeed())
 
-					manifestWork = &workv1.ManifestWork{}
-					// The controller should create a ManifestWork for this ManagedClusterAddon
+					// The controller should create ManifestWork(s) for this ManagedClusterAddon
 					Eventually(func() bool {
-						allMwList := &workv1.ManifestWorkList{}
-						Expect(testK8sClient.List(testCtx, allMwList,
-							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-						for _, mw := range allMwList.Items {
-							// addon-framework now creates manifestwork with "-0" prefix (to allow for
-							// creating multiple manifestworks if the content is large - will not be the case
-							// for VolSync - so we could alternatively just search for addon-volsync-deploy-0)
-							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-								manifestWork = &mw
-								break
-							}
-						}
-
-						if len(manifestWork.Spec.Workload.Manifests) == 0 {
+						foundVsManifests := false
+						manifestWorkList, foundVsManifests = getVolSyncManifestWorks(testManagedCluster.GetName())
+						if !foundVsManifests {
 							return false
 						}
 
-						// Find the deployment in the manifestwork
+						// Find the deployment in the manifestworks
 						var err error
-						volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-							manifestWork, genericCodec)
+						volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+							manifestWorkList, genericCodec)
 						if err != nil {
 							return false
 						}
@@ -1670,7 +1627,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							volsyncDeployment.Spec.Template.Spec.NodeSelector != nil
 					}, timeout, interval).Should(BeTrue())
 
-					Expect(manifestWork).ToNot(BeNil())
+					Expect(len(manifestWorkList) >= 0).To(BeTrue())
 					Expect(volsyncDeployment).NotTo(BeNil())
 					Expect(volsyncDeployment.GetNamespace()).To(Equal(expectedVolSyncNamespace))
 				})
@@ -1761,18 +1718,18 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 					It("Should create the deployment in the manifestwork with the node selector and tolerations from "+
 						" the managedclusteraddon, not the defaults", func() {
-						// Now re-load the manifestwork, based on timing it could haver originally
+						// Now re-load the manifestworks, based on timing they could have originally
 						// been updated with the defaults from the CMA - eventually should get updated properly
 						Eventually(func() bool {
-							reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(manifestWork), manifestWork)
-							if reloadErr != nil {
+							manifestWorkListReloaded, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return false
 							}
 
-							// Find the deployment in the manifestwork
+							// Find the deployment in the manifestworks
 							var err error
-							volsyncDeployment, err = getVolSyncDeploymentFromManifestWork(
-								manifestWork, genericCodec)
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkListReloaded, genericCodec)
 							if err != nil {
 								return false
 							}
@@ -1868,6 +1825,9 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 var _ = Describe("Addon Status Update Tests", func() {
 	logger := zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
+
+	genericCodecs := serializer.NewCodecFactory(scheme.Scheme)
+	genericCodec := genericCodecs.UniversalDeserializer()
 
 	// Make sure a ClusterManagementAddOn exists for volsync or addon-framework will not reconcile
 	// VolSync ManagedClusterAddOns
@@ -1986,45 +1946,39 @@ var _ = Describe("Addon Status Update Tests", func() {
 				}, timeout, interval).Should(Succeed())
 			})
 
-			Context("When the manifestwork is available", func() {
+			Context("When the manifestworks are available", func() {
 				JustBeforeEach(func() {
-					// The controller should create a ManifestWork for this ManagedClusterAddon
-					// Fake out that the ManifestWork is applied and available
+					// The controller should create ManifestWork(s) for this ManagedClusterAddon
+					// Fake out that the ManifestWorks are applied and available
 					Eventually(func() error {
-						var manifestWork *workv1.ManifestWork
-
-						allMwList := &workv1.ManifestWorkList{}
-						Expect(testK8sClient.List(testCtx, allMwList,
-							client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-						for _, mw := range allMwList.Items {
-							if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-								manifestWork = &mw
-								break
-							}
-						}
-
-						if manifestWork == nil {
+						manifestWorkList, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+						if !foundVsManifests {
 							return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 						}
 
-						workAppliedCondition := metav1.Condition{
-							Type:    workv1.WorkApplied,
-							Status:  metav1.ConditionTrue,
-							Reason:  "testupdate",
-							Message: "faking applied for test",
-						}
-						meta.SetStatusCondition(&manifestWork.Status.Conditions, workAppliedCondition)
+						for _, manifestWork := range manifestWorkList {
+							workAppliedCondition := metav1.Condition{
+								Type:    workv1.WorkApplied,
+								Status:  metav1.ConditionTrue,
+								Reason:  "testupdate",
+								Message: "faking applied for test",
+							}
+							meta.SetStatusCondition(&manifestWork.Status.Conditions, workAppliedCondition)
 
-						workAvailableCondition := metav1.Condition{
-							Type:    workv1.WorkAvailable,
-							Status:  metav1.ConditionTrue,
-							Reason:  "testupdate",
-							Message: "faking available for test",
-						}
-						meta.SetStatusCondition(&manifestWork.Status.Conditions, workAvailableCondition)
+							workAvailableCondition := metav1.Condition{
+								Type:    workv1.WorkAvailable,
+								Status:  metav1.ConditionTrue,
+								Reason:  "testupdate",
+								Message: "faking available for test",
+							}
+							meta.SetStatusCondition(&manifestWork.Status.Conditions, workAvailableCondition)
 
-						return testK8sClient.Status().Update(testCtx, manifestWork)
+							err := testK8sClient.Status().Update(testCtx, manifestWork)
+							if err != nil {
+								return err
+							}
+						}
+						return nil
 					}, timeout, interval).Should(Succeed())
 				})
 
@@ -2054,29 +2008,40 @@ var _ = Describe("Addon Status Update Tests", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
 							// Update the manifestwork to set the statusfeedback to a bad value
-							var manifestWork *workv1.ManifestWork
 
-							allMwList := &workv1.ManifestWorkList{}
-							Expect(testK8sClient.List(testCtx, allMwList,
-								client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-							for _, mw := range allMwList.Items {
-								if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-									manifestWork = &mw
-									break
-								}
-							}
-
-							if manifestWork == nil {
+							manifestWorkList, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							// Set status feedback to indicate desired replicas = 1 but no ready replicas
-							replicas := int64(1)
-							manifestWork.Status.ResourceStatus =
-								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, nil)
+							updated := false
+							for _, manifestWork := range manifestWorkList {
+								volsyncDeployment, err := getVolSyncDeploymentFromManifestWork(manifestWork, genericCodec)
+								if err != nil {
+									return err
+								}
+								if volsyncDeployment == nil {
+									// This is not the manifestwork containing the volsync deployment
+									continue
+								}
 
-							return testK8sClient.Status().Update(testCtx, manifestWork)
+								// Set status feedback in the manifestwork containing the volsync deployment to
+								// indicate desired replicas = 1 but no ready replicas
+								replicas := int64(1)
+								manifestWork.Status.ResourceStatus =
+									manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, nil)
+
+								err = testK8sClient.Status().Update(testCtx, manifestWork)
+								if err != nil {
+									return err
+								}
+								updated = true
+							}
+
+							if !updated {
+								return fmt.Errorf("Did not update the manifestwork with the volsync deployment")
+							}
+							return nil
 						}, timeout, interval).Should(Succeed())
 					})
 
@@ -2112,30 +2077,41 @@ var _ = Describe("Addon Status Update Tests", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
 							// Update the manifestwork to set the statusfeedback to a bad value
-							var manifestWork *workv1.ManifestWork
 
-							allMwList := &workv1.ManifestWorkList{}
-							Expect(testK8sClient.List(testCtx, allMwList,
-								client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-							for _, mw := range allMwList.Items {
-								if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-									manifestWork = &mw
-									break
-								}
-							}
-
-							if manifestWork == nil {
+							manifestWorkList, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							// Set status feedback to indicate desired replicas = 1 and ready replicas = 0
-							replicas := int64(1)
-							readyReplicas := int64(0)
-							manifestWork.Status.ResourceStatus =
-								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
+							updated := false
+							for _, manifestWork := range manifestWorkList {
+								volsyncDeployment, err := getVolSyncDeploymentFromManifestWork(manifestWork, genericCodec)
+								if err != nil {
+									return err
+								}
+								if volsyncDeployment == nil {
+									// This is not the manifestwork containing the volsync deployment
+									continue
+								}
 
-							return testK8sClient.Status().Update(testCtx, manifestWork)
+								// Set status feedback in the manifestwork containing the volsync deployment to
+								// to indicate desired replicas = 1 and ready replicas = 0
+								replicas := int64(1)
+								readyReplicas := int64(0)
+								manifestWork.Status.ResourceStatus =
+									manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
+
+								err = testK8sClient.Status().Update(testCtx, manifestWork)
+								if err != nil {
+									return err
+								}
+								updated = true
+							}
+
+							if !updated {
+								return fmt.Errorf("Did not update the manifestwork with the volsync deployment")
+							}
+							return nil
 						}, timeout, interval).Should(Succeed())
 					})
 
@@ -2171,31 +2147,42 @@ var _ = Describe("Addon Status Update Tests", func() {
 				Context("When the manifestwork statusFeedback is returned with correct deployment ready replicas", func() {
 					JustBeforeEach(func() {
 						Eventually(func() error {
-							// Update the manifestwork to set the statusfeedback to a bad value
-							var manifestWork *workv1.ManifestWork
+							// Update the manifestwork to set the statusfeedback to good value
 
-							allMwList := &workv1.ManifestWorkList{}
-							Expect(testK8sClient.List(testCtx, allMwList,
-								client.InNamespace(testManagedCluster.GetName()))).To(Succeed())
-
-							for _, mw := range allMwList.Items {
-								if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
-									manifestWork = &mw
-									break
-								}
-							}
-
-							if manifestWork == nil {
+							manifestWorkList, foundVsManifests := getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
 								return fmt.Errorf("Did not find the manifestwork with prefix addon-volsync-deploy")
 							}
 
-							// Set status feedback to indicate desired replicas = 1 and ready replicas = 1
-							replicas := int64(1)
-							readyReplicas := int64(1)
-							manifestWork.Status.ResourceStatus =
-								manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
+							updated := false
+							for _, manifestWork := range manifestWorkList {
+								volsyncDeployment, err := getVolSyncDeploymentFromManifestWork(manifestWork, genericCodec)
+								if err != nil {
+									return err
+								}
+								if volsyncDeployment == nil {
+									// This is not the manifestwork containing the volsync deployment
+									continue
+								}
 
-							return testK8sClient.Status().Update(testCtx, manifestWork)
+								// Set status feedback in the manifestwork containing the volsync deployment to
+								// to indicate desired replicas = 1 and ready replicas = 1
+								replicas := int64(1)
+								readyReplicas := int64(1)
+								manifestWork.Status.ResourceStatus =
+									manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(&replicas, &readyReplicas)
+
+								err = testK8sClient.Status().Update(testCtx, manifestWork)
+								if err != nil {
+									return err
+								}
+								updated = true
+							}
+
+							if !updated {
+								return fmt.Errorf("Did not update the manifestwork with the volsync deployment")
+							}
+							return nil
 						}, timeout, interval).Should(Succeed())
 					})
 
@@ -2384,6 +2371,50 @@ func addDeploymentConfigStatusEntry(managedClusterAddOn *addonv1alpha1.ManagedCl
 	return testK8sClient.Status().Update(testCtx, managedClusterAddOn)
 }
 
+// Will return false if we don't have a total number of volsync manifests found in all the volsync manifestworks
+// (this indicates it still may be processing/creating manifestworks, and retries are needed)
+func getVolSyncManifestWorks(namespace string) ([]*workv1.ManifestWork, bool) {
+	manifestWorkList := []*workv1.ManifestWork{}
+
+	allMwList := &workv1.ManifestWorkList{}
+	Expect(testK8sClient.List(testCtx, allMwList, client.InNamespace(namespace))).To(Succeed())
+
+	totalVSManifests := 0
+	for i := range allMwList.Items {
+		mw := allMwList.Items[i]
+		// addon-framework now creates manifestwork with "-0" or "-1" prefix (to allow for
+		// creating multiple manifestworks if the content is large
+		// Get all our volsync manifestworks as it can be split up into multiple manifestworks
+		if strings.HasPrefix(mw.GetName(), "addon-volsync-deploy") == true {
+			manifestWorkList = append(manifestWorkList, &mw)
+
+			totalVSManifests += len(mw.Spec.Workload.Manifests)
+		}
+	}
+
+	// We should expect at least 13 manifests for volsync - return false if not all enough are found yet
+	return manifestWorkList, totalVSManifests >= 13
+}
+
+// Will return err if the volsync deployment is not found in the manifestworklist
+func getVolSyncDeploymentFromManifestWorkList(manifestWorkList []*workv1.ManifestWork,
+	decoder runtime.Decoder) (*appsv1.Deployment, error) {
+	// Find the volsync deployment in the manifestwork
+	for _, manifestWork := range manifestWorkList {
+		volsyncDeployment, err := getVolSyncDeploymentFromManifestWork(manifestWork, decoder)
+		if err != nil {
+			return nil, err
+		}
+
+		if volsyncDeployment != nil {
+			return volsyncDeployment, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Unable to find volsync deployment in manifestworklist")
+}
+
+// Will return nil if the volsync deployment is not found in the manifestwork
 func getVolSyncDeploymentFromManifestWork(manifestWork *workv1.ManifestWork,
 	decoder runtime.Decoder) (*appsv1.Deployment, error) {
 	var volsyncDeployment *appsv1.Deployment
@@ -2395,19 +2426,17 @@ func getVolSyncDeploymentFromManifestWork(manifestWork *workv1.ManifestWork,
 			return nil, err
 		}
 
-		// This assumes there should be only 1 deployment in the manifestwork
 		if obj.GetObjectKind().GroupVersionKind().Kind == "Deployment" {
-			var ok bool
-			volsyncDeployment, ok = obj.(*appsv1.Deployment)
+			deployment, ok := obj.(*appsv1.Deployment)
 			if !ok {
 				return nil, fmt.Errorf("Unable to decode Deployment from manifestwork")
 			}
-			break
-		}
-	}
 
-	if volsyncDeployment == nil || volsyncDeployment.GetName() != "volsync" {
-		return nil, fmt.Errorf("Unable to find volsync deployment in manifestwork")
+			if deployment.GetName() == "volsync" {
+				volsyncDeployment = deployment
+				break
+			}
+		}
 	}
 
 	return volsyncDeployment, nil

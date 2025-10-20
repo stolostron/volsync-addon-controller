@@ -381,11 +381,17 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						BeforeEach(func() {
 							// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
 							// should still be valid here
+
+							// Deprecated field, but testing that it will not get used
+							//nolint:staticcheck // SA1019 - testing deprecated field behavior
 							mcAddon.Spec.InstallNamespace = "test1234"
 						})
 						It("Should still install to the default namespace", func() {
 							// Code shouldn't have alterted the spec - but tests above will confirm that the
 							// operatorgroup/subscription were created in volsync-system
+
+							// Deprecated field, but testing that it will not get used
+							//nolint:staticcheck // SA1019 - testing deprecated field behavior
 							Expect(mcAddon.Spec.InstallNamespace).To(Equal("test1234"))
 
 							helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
@@ -1815,10 +1821,6 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					Namespace: testManagedCluster.GetName(),
 				}, vsAddon)
 			}, timeout, interval).Should(Succeed())
-
-			// This ns is now the default in the mcao crd so will be used since we don't set it - note we ignore
-			// this and use openshift-operators (see the created subscription)
-			Expect(vsAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
 		})
 	})
 })

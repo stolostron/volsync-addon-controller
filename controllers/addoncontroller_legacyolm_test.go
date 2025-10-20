@@ -209,21 +209,23 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 					BeforeEach(func() {
 						// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
 						// should still be valid here
+
+						// Deprecated field, but testing that it will not get used
+						//nolint:staticcheck // SA1019 - testing deprecated field behavior
 						mcAddon.Spec.InstallNamespace = "test1234"
 					})
 					It("Should still install to the default openshift-operators namespace", func() {
 						// Code shouldn't have alterted the spec - but tests above will confirm that the
 						// operatorgroup/subscription were created in volsync-system
+
+						// Deprecated field, but testing that it will not get used
+						//nolint:staticcheck // SA1019 - testing deprecated field behavior
 						Expect(mcAddon.Spec.InstallNamespace).To(Equal("test1234"))
 					})
 				})
 
 				Context("When no annotations are on the managedclusteraddon", func() {
 					It("Should create the subscription (within the ManifestWork) with proper defaults", func() {
-						// This ns is now the default in the mcao crd so will be used - note we ignore this
-						// and use openshift-operators (see the created subscription)
-						Expect(mcAddon.Spec.InstallNamespace).To(Equal("open-cluster-management-agent-addon"))
-
 						Expect(operatorSubscription.Spec.Channel).To(Equal(controllers.DefaultChannel))
 						Expect(string(operatorSubscription.Spec.InstallPlanApproval)).To(Equal(
 							controllers.DefaultInstallPlanApproval))

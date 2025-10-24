@@ -19,7 +19,7 @@ require (
 	open-cluster-management.io/addon-framework v1.0.1
 	open-cluster-management.io/api v1.1.0
 	open-cluster-management.io/config-policy-controller v0.16.0
-	open-cluster-management.io/sdk-go v1.0.0
+	open-cluster-management.io/sdk-go v1.1.0
 	sigs.k8s.io/controller-runtime v0.22.3
 )
 

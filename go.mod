@@ -16,10 +16,10 @@ require (
 	k8s.io/client-go v0.34.1
 	k8s.io/component-base v0.34.1
 	k8s.io/klog/v2 v2.130.1
-	open-cluster-management.io/addon-framework v1.0.1
+	open-cluster-management.io/addon-framework v1.1.1
 	open-cluster-management.io/api v1.1.0
 	open-cluster-management.io/config-policy-controller v0.16.0
-	open-cluster-management.io/sdk-go v1.0.0
+	open-cluster-management.io/sdk-go v1.1.0
 	sigs.k8s.io/controller-runtime v0.22.3
 )
 
@@ -40,7 +40,6 @@ require (
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
-	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect

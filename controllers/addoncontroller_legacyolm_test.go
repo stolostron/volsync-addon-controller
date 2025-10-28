@@ -1408,7 +1408,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 				})
 
 				Context("When the manifestwork statusFeedback is not available", func() {
-					It("Should set the ManagedClusterAddon status to unavailable", func() {
+					It("Should set the ManagedClusterAddon status to Unknown with NoProbeResult reason", func() {
 						var statusCondition *metav1.Condition
 						Eventually(func() bool {
 							err := testK8sClient.Get(testCtx, types.NamespacedName{
@@ -1424,8 +1424,8 @@ var _ = Describe("Addon Status Update Tests", func() {
 							return statusCondition != nil
 						}, timeout, interval).Should(BeTrue())
 
-						Expect(statusCondition.Reason).To(Equal("ProbeUnavailable"))
-						Expect(statusCondition.Status).To(Equal(metav1.ConditionFalse))
+						Expect(statusCondition.Reason).To(Equal("NoProbeResult"))
+						Expect(statusCondition.Status).To(Equal(metav1.ConditionUnknown))
 					})
 				})
 

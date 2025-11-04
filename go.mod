@@ -1,12 +1,12 @@
 module github.com/stolostron/volsync-addon-controller
 
-go 1.24.4
+go 1.24.6
 
 require (
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/openshift/library-go v0.0.0-20251029104758-277736d6f195 // release-4.19
-	github.com/operator-framework/api v0.35.0
+	github.com/operator-framework/api v0.36.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
 	helm.sh/helm/v3 v3.19.0

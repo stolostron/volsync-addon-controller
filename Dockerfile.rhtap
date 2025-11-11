@@ -25,7 +25,7 @@ ARG commitFromGit_arg="(unknown)"
 RUN GO111MODULE=on go build -tags strictfipsruntime -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
 # Final container
-FROM registry.redhat.io/ubi9/ubi-minimal:latest@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7
+FROM registry.redhat.io/ubi9/ubi-minimal:latest@sha256:2ddd6e10383981c7d10e4966a7c0edce7159f8ca91b1691cafabc78bae79d8f8
 
 # RUN microdnf -y --refresh update && \
 #     microdnf clean all

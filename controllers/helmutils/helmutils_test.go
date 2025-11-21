@@ -31,8 +31,8 @@ var _ = Describe("Helmutils", func() {
 			chart, err := helmutils.GetEmbeddedChart(testDefaultHelmChartKey)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(chart).NotTo(BeNil())
-			// Our test Charts in "stable-0.14" should be volsync v0.14.x
-			Expect(chart.AppVersion()).To(ContainSubstring("0.14."))
+			// Our test Charts in "stable-0.15" should be volsync v0.15.x
+			Expect(chart.AppVersion()).To(ContainSubstring("0.15."))
 
 			// Test our other test embedded chart
 			oldChart, err := helmutils.GetEmbeddedChart(testOtherHelmChartKey)

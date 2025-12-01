@@ -32,7 +32,7 @@ FROM registry.redhat.io/ubi9/ubi-minimal:latest
 
 LABEL \
     name="rhacm2/acm-volsync-addon-controller-rhel9" \
-    cpe="cpe:/a:redhat:acm:2.15::el9" \
+    cpe="cpe:/a:redhat:acm:2.16::el9" \
     com.redhat.component="volsync-addon-controller" \
     description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
     operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \

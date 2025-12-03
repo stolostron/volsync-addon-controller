@@ -507,7 +507,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						}
 
 						BeforeEach(func() {
-							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 						})
 						AfterEach(func() {
 							cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
@@ -611,7 +611,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -687,7 +687,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -772,7 +772,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -869,7 +869,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 
-					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil, nil)
+					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", "", nil, nil)
 
 					// Update the ClusterManagementAddOn before we create it to set a default deployment config
 					clusterManagementAddon.Spec.SupportedConfigs[0].DefaultConfig = &addonv1alpha1.ConfigReferent{
@@ -1080,7 +1080,7 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1538,6 +1538,22 @@ var _ = Describe("Addon Status Update Tests", func() {
 						Expect(statusCondition.Reason).To(Equal("ProbeAvailable"))
 						Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
 						Expect(statusCondition.Message).To(ContainSubstring("volsync add-on is available"))
+					})
+
+					It("Should update the status with the install namespace", func() {
+						Eventually(func() bool {
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "volsync",
+								Namespace: testManagedClusterNamespace.GetName(),
+							}, mcAddon)
+							if err != nil {
+								return false
+							}
+
+							return mcAddon.Status.Namespace != ""
+						}, timeout, interval).Should(BeTrue())
+
+						Expect(mcAddon.Status.Namespace).To(Equal("openshift-operators")) // hardcoded for olm deploy
 					})
 				})
 			})

@@ -18,6 +18,7 @@ import (
 	"open-cluster-management.io/addon-framework/pkg/addonmanager"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
+	clusterv1client "open-cluster-management.io/api/client/cluster/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 )
 
@@ -27,11 +28,19 @@ func StartControllers(ctx context.Context, config *rest.Config) error {
 		return err
 	}
 
+	clusterClient, err := clusterv1client.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	mgr, err := addonmanager.New(config)
 	if err != nil {
 		return err
 	}
-	err = mgr.AddAgent(&volsyncAgent{addOnClient})
+	err = mgr.AddAgent(&volsyncAgent{
+		addOnClient,
+		clusterClient,
+	})
 	if err != nil {
 		return err
 	}

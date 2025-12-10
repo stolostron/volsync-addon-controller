@@ -229,36 +229,8 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 							Expect(len(totalMWManifests)).To(Equal(13))
 						}
 
-						// Get objects from our manifest that are not part of the helm chart
-						for _, m := range totalMWManifests {
-							obj, _, err := genericCodec.Decode(m.Raw, nil, nil)
-							Expect(err).NotTo(HaveOccurred())
-							objKind := obj.GetObjectKind().GroupVersionKind().Kind
-
-							switch objKind {
-							case "OperatorPolicy":
-								op, ok := obj.(*policyv1beta1.OperatorPolicy)
-								Expect(ok).To(BeTrue())
-								operatorPolicyObj = op
-							case "ClusterRole":
-								cr, ok := obj.(*rbacv1.ClusterRole)
-								Expect(ok).To(BeTrue())
-								if strings.Contains(cr.GetName(), "operatorpolicy-aggregate") {
-									// This is our operator policy clusterrole
-									operatorPolicyAggregateClusterRoleObj = cr
-								} else {
-									// This is a clusterrole from the helm chart
-									helmChartObjs = append(helmChartObjs, obj)
-								}
-							case "Namespace":
-								ns, ok := obj.(*corev1.Namespace)
-								Expect(ok).To(BeTrue())
-								namespaceObj = ns
-							default:
-								// This object came from the helm chart
-								helmChartObjs = append(helmChartObjs, obj)
-							}
-						}
+						namespaceObj, operatorPolicyObj, operatorPolicyAggregateClusterRoleObj, helmChartObjs =
+							getObjectsFromVolSyncManifestWorks(manifestWorkList, genericCodec)
 
 						Expect(namespaceObj).NotTo(BeNil())
 
@@ -378,6 +350,8 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						// ManagedClusterAddon.Spec.InstallNamespace is essentially deprecated and should not be used
 						// See: https://github.com/open-cluster-management-io/ocm/issues/298
 						// volsync-addon-controller Code should ignore it
+						// Note it is possible to set the install namespace in the addondeploymentconfig, see tests
+						// below that test that.
 						BeforeEach(func() {
 							// Override to specifically set the ns in the spec - all the tests above in JustBeforeEach
 							// should still be valid here
@@ -560,6 +534,16 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						Expect(volsyncDeployment.Spec.Template.Spec.NodeSelector).To(BeNil())
 					})
 
+					It("Should create the deployment and all resources in the default namespace of volsync-system", func() {
+						volsyncNamespace, _, _, helmChartObjs := getObjectsFromVolSyncManifestWorks(manifestWorkList, genericCodec)
+						Expect(volsyncNamespace).NotTo(BeNil())
+						Expect(volsyncNamespace.GetName()).To(Equal("volsync-system"))
+
+						helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
+							"volsync-system", // All objects should be in the volsync-system namespace by default
+							true /* our defaults for this test are OpensShift */)
+					})
+
 					Context("When the managedclusteraddon is updated later with a addondeploymentconfig", func() {
 						var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
 						nodePlacement := &addonv1alpha1.NodePlacement{
@@ -580,7 +564,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 
 						BeforeEach(func() {
 							// Update addonDeploymentConfig with nodePlacment and specific rbacProxy and volsync imgs
-							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement,
+							addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "",
 								customRbacProxyImage, customVolSyncImage, nil, nil)
 						})
 						AfterEach(func() {
@@ -680,7 +664,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -754,7 +738,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -837,7 +821,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -916,7 +900,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					}
 
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", nil, customResourceRequirements)
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", "", nil, customResourceRequirements)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1299,7 +1283,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						logger.Info("setting customRegistries in addondeploymentconfig",
 							"customRegistries", customRegistries)
 
-						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", customRegistries, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, "", "", "", customRegistries, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -1385,7 +1369,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						logger.Info("setting customRegistries in addondeploymentconfig",
 							"customRegistries", customRegistries)
 
-						addonDeploymentConfig = createAddonDeploymentConfig(nil,
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, "",
 							customVolSyncRbacProxyImage, customVolSyncImage, customRegistries, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
@@ -1454,6 +1438,81 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 					})
 				})
 
+				Context("When the addonDeploymentConfig sets the install namespace", func() {
+					var addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
+					var customInstallNamespace = "deploy-here-on-my-mgd-cluster"
+
+					BeforeEach(func() {
+						addonDeploymentConfig = createAddonDeploymentConfig(nil, customInstallNamespace, "", "", nil, nil)
+
+						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
+						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
+							{
+								ConfigGroupResource: addonv1alpha1.ConfigGroupResource{
+									Group:    "addon.open-cluster-management.io",
+									Resource: "addondeploymentconfigs",
+								},
+								ConfigReferent: addonv1alpha1.ConfigReferent{
+									Name:      addonDeploymentConfig.GetName(),
+									Namespace: addonDeploymentConfig.GetNamespace(),
+								},
+							},
+						}
+					})
+					AfterEach(func() {
+						cleanupAddonDeploymentConfig(addonDeploymentConfig, true)
+					})
+
+					JustBeforeEach(func() {
+						// The controller that used to update the managedClusterAddOn status with the deploymentconfig
+						// has been moved to a common controller in the ocm hub - so simulate status update so our
+						// code can proceed
+						Eventually(func() error {
+							err := addDeploymentConfigStatusEntry(mcAddon, addonDeploymentConfig)
+							if err != nil {
+								// Reload the mcAddOn before we try again in case there was a conflict with updating
+								reloadErr := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)
+								if reloadErr != nil {
+									return reloadErr
+								}
+								return err
+							}
+							return nil
+						}, timeout, interval).Should(Succeed())
+
+						// Now re-load the manifestworks, should get updated
+						Eventually(func() bool {
+							foundVsManifests := false
+							manifestWorkList, foundVsManifests = getVolSyncManifestWorks(testManagedCluster.GetName())
+							if !foundVsManifests {
+								return false
+							}
+
+							// Find the deployment in the manifestworks
+							var err error
+							volsyncDeployment, err = getVolSyncDeploymentFromManifestWorkList(
+								manifestWorkList, genericCodec)
+							if err != nil {
+								return false
+							}
+
+							// If the deployment has the new install namespace set, then it's been updated properly
+							return volsyncDeployment.GetNamespace() == customInstallNamespace
+						}, timeout, interval).Should(BeTrue())
+					})
+
+					It("Should create the deployment and all resources in the specified install namespace", func() {
+						logger.Info("ManifestWorkList", "manifestWorkList", manifestWorkList)
+
+						volsyncNamespace, _, _, helmChartObjs := getObjectsFromVolSyncManifestWorks(manifestWorkList, genericCodec)
+						Expect(volsyncNamespace).NotTo(BeNil())
+						Expect(volsyncNamespace.GetName()).To(Equal(customInstallNamespace))
+
+						helmutilstest.VerifyHelmRenderedVolSyncObjects(helmChartObjs,
+							customInstallNamespace, // All objects should be in the custom namespace by default
+							true /* our defaults for this test are OpenShift */)
+					})
+				})
 			})
 
 			Context("When the volsync ClusterManagementAddOn has a default deployment config w/ node "+
@@ -1489,7 +1548,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 
-					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", nil, nil)
+					defaultAddonDeploymentConfig = createAddonDeploymentConfig(defaultNodePlacement, "", "", "", nil, nil)
 
 					// Update the ClusterManagementAddOn before we create it to set a default deployment config
 					clusterManagementAddon.Spec.SupportedConfigs[0].DefaultConfig = &addonv1alpha1.ConfigReferent{
@@ -1677,7 +1736,7 @@ var _ = Describe("Addoncontroller - helm deployment tests", func() {
 						},
 					}
 					BeforeEach(func() {
-						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", nil, nil)
+						addonDeploymentConfig = createAddonDeploymentConfig(nodePlacement, "", "", "", nil, nil)
 
 						// Update the managedclusteraddon before we create it to add the addondeploymentconfig
 						mcAddon.Spec.Configs = []addonv1alpha1.AddOnConfig{
@@ -2214,6 +2273,22 @@ var _ = Describe("Addon Status Update Tests", func() {
 						Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
 						Expect(statusCondition.Message).To(ContainSubstring("volsync add-on is available"))
 					})
+
+					It("Should update the status with the install namespace", func() {
+						Eventually(func() bool {
+							err := testK8sClient.Get(testCtx, types.NamespacedName{
+								Name:      "volsync",
+								Namespace: testManagedClusterNamespace.GetName(),
+							}, mcAddon)
+							if err != nil {
+								return false
+							}
+
+							return mcAddon.Status.Namespace != ""
+						}, timeout, interval).Should(BeTrue())
+
+						Expect(mcAddon.Status.Namespace).To(Equal("volsync-system")) // Default for helm deploy
+					})
 				})
 			})
 		})
@@ -2266,6 +2341,7 @@ func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
 }
 
 func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement,
+	installNamespace string,
 	rbacProxyImage string,
 	volSyncImage string,
 	registries []addonv1alpha1.ImageMirror,
@@ -2289,6 +2365,10 @@ func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement,
 		Spec: addonv1alpha1.AddOnDeploymentConfigSpec{
 			NodePlacement: nodePlacement,
 		},
+	}
+
+	if installNamespace != "" {
+		customAddonDeploymentConfig.Spec.AgentInstallNamespace = installNamespace
 	}
 
 	// Set rbac proxy image as env var override
@@ -2397,6 +2477,53 @@ func getVolSyncManifestWorks(namespace string) ([]*workv1.ManifestWork, bool) {
 
 	// We should expect at least 13 manifests for volsync - return false if not all enough are found yet
 	return manifestWorkList, totalVSManifests >= 13
+}
+
+func getObjectsFromVolSyncManifestWorks(manifestWorkList []*workv1.ManifestWork,
+	genericCodec runtime.Decoder,
+) (*corev1.Namespace, *policyv1beta1.OperatorPolicy, *rbacv1.ClusterRole, []runtime.Object) {
+
+	totalMWManifests := []workv1.Manifest{}
+	for i := range manifestWorkList {
+		totalMWManifests = append(totalMWManifests, manifestWorkList[i].Spec.Workload.Manifests...)
+	}
+
+	var namespaceObj *corev1.Namespace
+	var operatorPolicyObj *policyv1beta1.OperatorPolicy
+	var operatorPolicyAggregateClusterRoleObj *rbacv1.ClusterRole
+	var helmChartObjs []runtime.Object
+
+	for _, m := range totalMWManifests {
+		obj, _, err := genericCodec.Decode(m.Raw, nil, nil)
+		Expect(err).NotTo(HaveOccurred())
+		objKind := obj.GetObjectKind().GroupVersionKind().Kind
+
+		switch objKind {
+		case "OperatorPolicy":
+			op, ok := obj.(*policyv1beta1.OperatorPolicy)
+			Expect(ok).To(BeTrue())
+			operatorPolicyObj = op
+		case "ClusterRole":
+			cr, ok := obj.(*rbacv1.ClusterRole)
+			Expect(ok).To(BeTrue())
+			if strings.Contains(cr.GetName(), "operatorpolicy-aggregate") {
+				// This is our operator policy clusterrole
+				operatorPolicyAggregateClusterRoleObj = cr
+			} else {
+				// This is a clusterrole from the helm chart
+				helmChartObjs = append(helmChartObjs, obj)
+			}
+		case "Namespace":
+			ns, ok := obj.(*corev1.Namespace)
+			Expect(ok).To(BeTrue())
+			namespaceObj = ns
+		default:
+			// This object came from the helm chart
+			helmChartObjs = append(helmChartObjs, obj)
+		}
+	}
+
+	return namespaceObj, operatorPolicyObj, operatorPolicyAggregateClusterRoleObj, helmChartObjs
 }
 
 // Will return err if the volsync deployment is not found in the manifestworklist

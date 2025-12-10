@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"embed"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -18,6 +20,7 @@ import (
 	addonframeworkutils "open-cluster-management.io/addon-framework/pkg/utils"
 	addonapiv1alpha1 "open-cluster-management.io/api/addon/v1alpha1"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
+	clusterv1client "open-cluster-management.io/api/client/cluster/clientset/versioned"
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 	workapiv1 "open-cluster-management.io/api/work/v1"
 
@@ -124,7 +127,8 @@ var manifestFilesHelmDeployOpenShift = []string{
 
 // Another agent with registration enabled.
 type volsyncAgent struct {
-	addonClient addonv1alpha1client.Interface
+	addonClient   addonv1alpha1client.Interface
+	clusterClient clusterv1client.Interface
 }
 
 var _ agent.AgentAddon = &volsyncAgent{}
@@ -182,6 +186,33 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 		SupportedConfigGVRs: []schema.GroupVersionResource{
 			addonframeworkutils.AddOnDeploymentConfigGVR,
 		},
+		Registration: &agent.RegistrationOption{
+			CSRConfigurations: func(cluster *clusterv1.ManagedCluster,
+				addon *addonapiv1alpha1.ManagedClusterAddOn) ([]addonapiv1alpha1.RegistrationConfig, error) {
+				// no-op func, we don't need any CSR configurations
+				return nil, nil
+			},
+			// Set agent install namespace from addon deployment config if it exists or our our default
+			AgentInstallNamespace: getVolsyncInstallNamespaceFunc(h.addonClient, h.clusterClient),
+		},
+	}
+}
+
+func getVolsyncInstallNamespaceFunc(
+	addonClient addonv1alpha1client.Interface,
+	clusterClient clusterv1client.Interface,
+) func(addon *addonapiv1alpha1.ManagedClusterAddOn) (string, error) {
+	return func(addon *addonapiv1alpha1.ManagedClusterAddOn) (string, error) {
+		// Lookup cluster
+		managedCluster, err := clusterClient.ClusterV1().ManagedClusters().
+			Get(context.TODO(), addon.Namespace /* this is the mgd cluster name */, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+
+		// ManifestHelper will get the install namespace (will be different for helm and operator deployments)
+		mh := getManifestHelper(embedFS, addonClient, managedCluster, addon)
+		return mh.getInstallNamespace()
 	}
 }
 

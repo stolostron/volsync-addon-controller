@@ -22,7 +22,12 @@ type manifestHelperHelmDeploy struct {
 var _ manifestHelper = &manifestHelperHelmDeploy{}
 
 func (mh *manifestHelperHelmDeploy) loadManifests() ([]runtime.Object, error) {
-	values, err := mh.getValuesForManifest()
+	installNamespace, err := mh.getInstallNamespace()
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := mh.getValuesForManifest(installNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +44,7 @@ func (mh *manifestHelperHelmDeploy) loadManifests() ([]runtime.Object, error) {
 	}
 
 	// Now load manifest objects rendered from our volsync helm chart
-	helmObjects, err := mh.loadManifestsFromHelmRepo(values)
+	helmObjects, err := mh.loadManifestsFromHelmRepo(installNamespace, values)
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +100,8 @@ func (mh *manifestHelperHelmDeploy) subHealthCheck(fieldResults []agent.FieldRes
 }
 
 // Now need to load and render the helm charts into objects
-func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactory.Values) ([]runtime.Object, error) {
-	installNamespace := mh.getInstallNamespace()
-
+func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(installNamespace string,
+	values addonfactory.Values) ([]runtime.Object, error) {
 	// Chart will include default values from the values.yaml
 	chart, err := helmutils.GetEmbeddedChart(mh.getChartKey())
 	if err != nil {
@@ -111,7 +115,7 @@ func (mh *manifestHelperHelmDeploy) loadManifestsFromHelmRepo(values addonfactor
 }
 
 //nolint:funlen
-func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values, error) {
+func (mh *manifestHelperHelmDeploy) getValuesForManifest(installNamespace string) (addonfactory.Values, error) {
 	manifestConfig := struct {
 		// OpenShift target cluster parameters - this is the same as the subscription name
 		// only used for cleaning up old OLM based install of VolSync (olm sub/csv will be removed
@@ -128,7 +132,7 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 		// These are our default values
 		OperatorName:       operatorName,
 		ManagedClusterName: mh.cluster.GetName(),
-		InstallNamespace:   mh.getInstallNamespace(),
+		InstallNamespace:   installNamespace,
 		ImagePullSecrets:   mh.getImagePullSecrets(),
 	}
 
@@ -184,8 +188,19 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	return mergedValuesFinal, nil
 }
 
-func (mh *manifestHelperHelmDeploy) getInstallNamespace() string {
-	return DefaultHelmInstallNamespace
+func (mh *manifestHelperHelmDeploy) getInstallNamespace() (string, error) {
+	ns, err := addonframeworkutils.AgentInstallNamespaceFromDeploymentConfigFunc(
+		addonframeworkutils.NewAddOnDeploymentConfigGetter(mh.addonClient))(mh.addon)
+	if err != nil {
+		return "", err
+	}
+
+	// AgentInstallNamespaceFromDeploymentConfigFunc will return an empty string if no addon deployment config exists
+	// or no ns specified
+	if ns == "" {
+		return DefaultHelmInstallNamespace, nil
+	}
+	return ns, nil
 }
 
 // Image pull secrets - we will set the "open-cluster-management-image-pull-credentials" secret copied from hub

@@ -9,7 +9,7 @@ ARCH := $(shell go env GOARCH)
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Helper software versions
-GOLANGCI_VERSION := v2.0.2
+GOLANGCI_VERSION := v2.7.2
 ENVTEST_K8S_VERSION = 1.30
 
 GO_LD_EXTRAFLAGS ?=

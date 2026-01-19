@@ -1,3 +1,5 @@
+ARG ACM_VERSION="unknown"
+
 # Build the addon controller binary
 FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.25 AS builder
 USER root
@@ -20,7 +22,8 @@ ENV GOFLAGS=-mod=readonly
 ENV CGO_ENABLED=1
 ENV GOEXPERIMENT=strictfipsruntime
 ENV BUILD_TAGS="strictfipsruntime"
-ARG versionFromGit_arg="(unknown)"
+ARG ACM_VERSION
+ARG versionFromGit_arg="${ACM_VERSION}"
 ARG commitFromGit_arg="(unknown)"
 RUN GO111MODULE=on go build -tags strictfipsruntime -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
 
@@ -30,9 +33,11 @@ FROM registry.redhat.io/ubi9/ubi-minimal:latest
 # RUN microdnf -y --refresh update && \
 #     microdnf clean all
 
+ARG ACM_VERSION
+
 LABEL \
     name="rhacm2/acm-volsync-addon-controller-rhel9" \
-    cpe="cpe:/a:redhat:acm:2.16::el9" \
+    cpe="cpe:/a:redhat:acm:${ACM_VERSION}::el9" \
     com.redhat.component="volsync-addon-controller" \
     description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
     operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \

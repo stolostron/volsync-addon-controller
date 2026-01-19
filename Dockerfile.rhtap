@@ -31,7 +31,8 @@ FROM registry.redhat.io/ubi9/ubi-minimal:latest
 #     microdnf clean all
 
 LABEL \
-    name="volsync-addon-controller" \
+    name="rhacm2/acm-volsync-addon-controller-rhel9" \
+    cpe="cpe:/a:redhat:acm:2.11::el9" \
     com.redhat.component="volsync-addon-controller" \
     description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
     operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \
@@ -40,7 +41,8 @@ LABEL \
     summary="A controller addon for Red Hat ACM that deploys the VolSync operator \
     on managed clusters using ManagedClusterAddOn CRs." \
     io.k8s.display-name="Red Hat Advanced Cluster Management Volsync Addon Controller" \
-    io.openshift.tags="acm volsync-addon-controller"
+    io.openshift.tags="acm volsync-addon-controller" \
+    url="https://github.com/stolostron/volsync-addon-controller"
 
 WORKDIR /
 COPY --from=builder /workspace/controller .

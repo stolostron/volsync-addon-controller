@@ -157,11 +157,10 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	// Merge manifestConfig and deploymentConfigValues
 	mergedValues := addonfactory.MergeValues(manifestConfigValues, deploymentConfigValues)
 
-	// volSyncImage/volsyncRbacProxyImage will be the images set either by defaults,
+	// volSyncImage will be the images set either by defaults,
 	// or overridden in the addondeploymentconfig (or empty if no defaults, in which
 	// case whatever is in the helm charts will be used - this is the upstream case)
 	volSyncImage := mh.getVolSyncImageFromValues(mergedValues)
-	volSyncRbacProxyImage := mh.getVolSyncRbacProxyImageFromValues(mergedValues)
 
 	// Pass through again to see if we need to override image paths from the addondeploymentconfig
 	// (Use ToImageOverrideValuesFunc to allow for overriding the image registry source/mirror in
@@ -169,7 +168,6 @@ func (mh *manifestHelperHelmDeploy) getValuesForManifest() (addonfactory.Values,
 	deploymentConfigValues2ImageOverrides, err := addonfactory.GetAddOnDeploymentConfigValues(
 		addonframeworkutils.NewAddOnDeploymentConfigGetter(mh.addonClient),
 		getVolSyncImageOverrideFunc(volSyncImage),
-		getVolSyncRbacProxyImageOverrideFunc(volSyncRbacProxyImage),
 	)(mh.cluster, mh.addon)
 	if err != nil {
 		return nil, err
@@ -205,14 +203,6 @@ func (mh *manifestHelperHelmDeploy) getImagePullSecrets() []map[string]string {
 
 func (mh *manifestHelperHelmDeploy) getVolSyncImageFromValues(values addonfactory.Values) string {
 	v, ok := values[EnvVarVolSyncImageName]
-	if ok {
-		return v.(string)
-	}
-	return ""
-}
-
-func (mh *manifestHelperHelmDeploy) getVolSyncRbacProxyImageFromValues(values addonfactory.Values) string {
-	v, ok := values[EnvVarRbacProxyImageName]
 	if ok {
 		return v.(string)
 	}
@@ -266,16 +256,6 @@ func (mh *manifestHelperHelmDeploy) updateChartValuesForVolSync(values addonfact
 			values["syncthing"] = vsImgAsMap
 		}
 	}
-
-	volSyncRbacProxyImageVal, ok := values[EnvVarRbacProxyImageName]
-	if ok {
-		volSyncRbacProxyImage, ok := volSyncRbacProxyImageVal.(string)
-		if ok && volSyncRbacProxyImage != "" {
-			values["kube-rbac-proxy"] = map[string]string{
-				"image": volSyncRbacProxyImage,
-			}
-		}
-	}
 }
 
 // Get resource requirements from config
@@ -305,16 +285,6 @@ func updateVolSyncResourceRequirements(values addonfactory.Values) {
 			//	"resources", rr.Resources)
 			values["resources"] = rr.Resources
 		}
-
-		// Check if the "kube-rbac-proxy" container should be updated
-		matchesProxy, err := regexp.MatchString(rr.ContainerIDRegex, "deployments:volsync:kube-rbac-proxy")
-		if err != nil {
-			klog.ErrorS(err, "unable to match resource requirements by regex for volsync kube-rbac-proxy container")
-		} else if matchesProxy {
-			// klog.InfoS("updating volsync kube-rbac-proxy container with resource requirements",
-			// 	"resources", rr.Resources)
-			values["kube-rbac-proxy-resources"] = rr.Resources
-		}
 	}
 
 	// Clean up ResourceRequirements from custom values as it's not used directly by VolSync
@@ -342,18 +312,4 @@ func getVolSyncImageOverrideFunc(volSyncImage string,
 	// Return override func to override our image (via env var name) and our value with whatever
 	// registries may be set in the addondeploymentconfig
 	return addonfactory.ToImageOverrideValuesFunc(EnvVarVolSyncImageName, volSyncImage)
-}
-
-func getVolSyncRbacProxyImageOverrideFunc(volSyncRbacProxyImage string,
-) func(config addonv1alpha1.AddOnDeploymentConfig) (addonfactory.Values, error) {
-	if volSyncRbacProxyImage == "" {
-		// No image override needed, return no-op func
-		return func(config addonv1alpha1.AddOnDeploymentConfig) (addonfactory.Values, error) {
-			return nil, nil
-		}
-	}
-
-	// Return override func to override our image (via env var name) and our value with whatever
-	// registries may be set in the addondeploymentconfig
-	return addonfactory.ToImageOverrideValuesFunc(EnvVarRbacProxyImageName, volSyncRbacProxyImage)
 }

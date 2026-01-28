@@ -65,10 +65,6 @@ var _ = Describe("Helmutils", func() {
 			vsImage, ok := defaultImageMap[controllers.EnvVarVolSyncImageName]
 			Expect(ok).To(BeTrue())
 			Expect(vsImage).To(Equal("registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8:test-version-0.12.0"))
-
-			rbacProxyImage, ok := defaultImageMap[controllers.EnvVarRbacProxyImageName]
-			Expect(ok).To(BeTrue())
-			Expect(rbacProxyImage).To(Equal("registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9:test-version-abc"))
 		})
 	})
 
@@ -111,9 +107,7 @@ var _ = Describe("Helmutils", func() {
 
 					// For our test "dev" helmchart, we didn't have any image overrides, so should
 					// have imgs from the charts directly
-					rbProxyImg := vsDeployment.Spec.Template.Spec.Containers[0].Image
-					Expect(rbProxyImg).To(Equal("quay.io/brancz/kube-rbac-proxy:v0.18.1"))
-					vsImg := vsDeployment.Spec.Template.Spec.Containers[1].Image
+					vsImg := vsDeployment.Spec.Template.Spec.Containers[0].Image
 					Expect(vsImg).To(Equal("quay.io/backube/volsync:0.12.0"))
 				})
 			})

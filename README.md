@@ -181,14 +181,12 @@ metadata:
   namespace: default
 spec:
   registries:
-    # This will replace volsync images (kube-rbac-proxy img or volsync img) paths to the registry
+    # This will replace the volsync image path to the registry
     # will only replace if the source path matches (normally would not use this if overriding
     # images below, but it can be done)
     - mirror: quay.io/mytest
       source: registry-proxy.engineering.redhat.com/rh-osbs
   customizedVariables:
-    - name: OPERAND_IMAGE_OSE_KUBE_RBAC_PROXY
-      value: registry-proxy.engineering.redhat.com/rh-osbs/kube-rbac-proxy:v0.18.2
     - name: OPERAND_IMAGE_VOLSYNC
       value: quay.io/myrepo/volsync:latest
 ```

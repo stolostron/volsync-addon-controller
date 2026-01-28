@@ -34,7 +34,6 @@ var testK8sClient client.Client
 
 //nolint:lll
 const testDefaultVolSyncImage = "registry-proxy.engineering.redhat.com/rh-osbs/rhacm2-volsync-rhel8@sha256:a9b062f27b09ad8a42f7be2ee361baecc5856f66a83f7c4eb938a578b2713949"
-const testDefaultRbacProxyImage = "registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9:v4.17"
 
 const (
 	maxWait  = "60s"
@@ -66,8 +65,7 @@ var _ = BeforeSuite(func() {
 	// Set the default images to our test ones (in real env they will be
 	// loaded from the MCH image-manifests configmap)
 	testDefaultImageMap := map[string]string{
-		controllers.EnvVarVolSyncImageName:   testDefaultVolSyncImage,
-		controllers.EnvVarRbacProxyImageName: testDefaultRbacProxyImage,
+		controllers.EnvVarVolSyncImageName: testDefaultVolSyncImage,
 	}
 	Expect(helmutils.InitEmbeddedCharts(testChartsDir,
 		controllers.DefaultHelmChartKey, testDefaultImageMap)).To(Succeed())

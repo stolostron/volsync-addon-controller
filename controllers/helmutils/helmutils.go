@@ -40,7 +40,7 @@ var globalKinds = []string{
 var loadedChartsMap sync.Map
 
 // key will be stable-X.Y (depends on release)
-// value is a map containing values for volsync & kube-rbac-proxy image
+// value is a map containing values for volsync image
 // Usually we will only have one dir, the default one (e.g. stable-0.12)
 // However this allows for us to insert another stable-x.y release at some
 // point if desired with specific image values in the images.yaml

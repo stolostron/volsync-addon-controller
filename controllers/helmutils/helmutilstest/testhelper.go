@@ -118,9 +118,8 @@ func VerifyHelmRenderedVolSyncObjects(objs []runtime.Object,
 
 	// Check deployment
 	Expect(deployment.GetName()).To(Equal("volsync"))
-	Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(2))
-	Expect(deployment.Spec.Template.Spec.Containers[0].Name).To(Equal("kube-rbac-proxy"))
-	Expect(deployment.Spec.Template.Spec.Containers[1].Name).To(Equal("manager"))
+	Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(1))
+	Expect(deployment.Spec.Template.Spec.Containers[0].Name).To(Equal("manager"))
 
 	Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(serviceAccount.GetName()))
 	if clusterIsOpenShift {

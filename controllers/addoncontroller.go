@@ -83,8 +83,7 @@ const (
 
 	AnnotationHelmChartKey = "helm-chart-key"
 
-	EnvVarVolSyncImageName   = "OPERAND_IMAGE_VOLSYNC"
-	EnvVarRbacProxyImageName = "OPERAND_IMAGE_OSE_KUBE_RBAC_PROXY"
+	EnvVarVolSyncImageName = "OPERAND_IMAGE_VOLSYNC"
 
 	// This is the name of the pull secret that is copied to the namespace (volsync-system) on the managed
 	// cluster.  This will allow pulls to the redhat registry.

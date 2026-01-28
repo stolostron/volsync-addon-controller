@@ -45,34 +45,6 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- end }}
       containers:
-        - name: kube-rbac-proxy
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - "ALL"
-            readOnlyRootFilesystem: true
-          image: "{{ include "container-image" (list . (index .Values "kube-rbac-proxy") ) }}"
-          args:
-            - --secure-listen-address=0.0.0.0:8443
-            - --upstream=http://127.0.0.1:8080/
-            - --logtostderr=true
-            - "--tls-min-version=VersionTLS12"
-            - --v=0
-            {{- if .Values.metrics.disableAuth }}
-            - --ignore-paths=/metrics
-            {{- end }}
-          ports:
-            - containerPort: 8443
-              protocol: TCP
-              name: https
-          resources:
-            limits:
-              cpu: 500m
-              memory: 128Mi
-            requests:
-              cpu: 5m
-              memory: 64Mi
         - name: manager
           args:
             - --health-probe-bind-address=:8081

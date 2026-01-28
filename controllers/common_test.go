@@ -99,11 +99,9 @@ var _ = Describe("Get default images from mch configmap tests tests", func() {
 
 		When("The mch configmap has both volsync image references", func() {
 			testVsImg := "testrepo.io/custom/volsync-image:test-label"
-			testRbacProxyImg := "testrepo.io/custom/rbacproxy:test-label"
 			BeforeEach(func() {
 				mchConfigMap.Data = map[string]string{
-					"volsync":             testVsImg,
-					"ose_kube_rbac_proxy": testRbacProxyImg,
+					"volsync": testVsImg,
 				}
 			})
 
@@ -111,14 +109,12 @@ var _ = Describe("Get default images from mch configmap tests tests", func() {
 				defImageMap, err := controllers.GetVolSyncDefaultImagesFromMCH(testCtx, testK8sClient, namespace.GetName())
 				Expect(err).NotTo(HaveOccurred())
 				Expect(defImageMap).NotTo(BeNil())
-				Expect(len(defImageMap)).To(Equal(2))
+				Expect(len(defImageMap)).To(Equal(1))
 				Expect(defImageMap[controllers.EnvVarVolSyncImageName]).To(Equal(testVsImg))
-				Expect(defImageMap[controllers.EnvVarRbacProxyImageName]).To(Equal(testRbacProxyImg))
 			})
 
 			When("There are multiple mch configmaps", func() {
 				newTestVsImg := "newlocation.io/custom/volsync-image:new-label"
-				newTestRbacProxyImg := "newlocation.io/custom/rbacproxy:new-label"
 				var newMchConfigMap *corev1.ConfigMap
 
 				BeforeEach(func() {
@@ -132,8 +128,7 @@ var _ = Describe("Get default images from mch configmap tests tests", func() {
 							},
 						},
 						Data: map[string]string{
-							"volsync":             newTestVsImg,
-							"ose_kube_rbac_proxy": newTestRbacProxyImg,
+							"volsync": newTestVsImg,
 						},
 					}
 				})
@@ -146,9 +141,8 @@ var _ = Describe("Get default images from mch configmap tests tests", func() {
 					defImageMap, err := controllers.GetVolSyncDefaultImagesFromMCH(testCtx, testK8sClient, namespace.GetName())
 					Expect(err).NotTo(HaveOccurred())
 					Expect(defImageMap).NotTo(BeNil())
-					Expect(len(defImageMap)).To(Equal(2))
+					Expect(len(defImageMap)).To(Equal(1))
 					Expect(defImageMap[controllers.EnvVarVolSyncImageName]).To(Equal(newTestVsImg))
-					Expect(defImageMap[controllers.EnvVarRbacProxyImageName]).To(Equal(newTestRbacProxyImg))
 				})
 			})
 		})

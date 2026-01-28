@@ -150,7 +150,7 @@ func GetVolSyncDefaultImagesFromMCH(ctx context.Context,
 	} else {
 		klog.InfoS("MCH image-manifest configmap", "name", mchCM.Name)
 		// Looking for 2 images, volsync image and the ose-kube-rbac-proxy img
-		// Keys in the configmap will be the same as the env vars, but lowercase and without OPERAND_IMAGE_ prefix
+		// Keys in the MCH configmap will be the same as the env vars, but lowercase and without OPERAND_IMAGE_ prefix
 		volSyncImageKey := strings.ToLower(strings.Replace(EnvVarVolSyncImageName, "OPERAND_IMAGE_", "", 1))
 		rbacProxyImageKey := strings.ToLower(strings.Replace(EnvVarRbacProxyImageName, "OPERAND_IMAGE_", "", 1))
 

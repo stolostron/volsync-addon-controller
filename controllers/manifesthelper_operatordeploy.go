@@ -58,6 +58,11 @@ func (mh *manifestHelperOperatorDeploy) subHealthCheck(fieldResults []agent.Fiel
 }
 
 func (mh *manifestHelperOperatorDeploy) getValuesForManifest() (addonfactory.Values, error) {
+	installNamespace, err := mh.getInstallNamespace()
+	if err != nil {
+		return nil, err // should never happen
+	}
+
 	manifestConfig := struct {
 		OperatorInstallNamespace string
 
@@ -70,7 +75,7 @@ func (mh *manifestHelperOperatorDeploy) getValuesForManifest() (addonfactory.Val
 		Channel                string
 		StartingCSV            string
 	}{
-		OperatorInstallNamespace: mh.getOperatorInstallNamespace(),
+		OperatorInstallNamespace: installNamespace,
 
 		OperatorName:           operatorName,
 		CatalogSource:          mh.getCatalogSource(),
@@ -97,9 +102,10 @@ func (mh *manifestHelperOperatorDeploy) getValuesForManifest() (addonfactory.Val
 	return mergedValues, nil
 }
 
-func (mh *manifestHelperOperatorDeploy) getOperatorInstallNamespace() string {
+// Returns error to conform to ManifestHelper interface
+func (mh *manifestHelperOperatorDeploy) getInstallNamespace() (string, error) {
 	// The only namespace supported is openshift-operators, so ignore whatever is in the spec
-	return globalOperatorInstallNamespace
+	return globalOperatorInstallNamespace, nil
 }
 
 func (mh *manifestHelperOperatorDeploy) getCatalogSource() string {

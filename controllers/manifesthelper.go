@@ -20,6 +20,7 @@ import (
 type manifestHelper interface {
 	loadManifests() ([]runtime.Object, error)
 	subHealthCheck(fieldResults []agent.FieldResult) error
+	getInstallNamespace() (string, error)
 }
 
 func getManifestHelper(embedFS embed.FS, addonClient addonv1alpha1client.Interface,

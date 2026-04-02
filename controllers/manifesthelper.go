@@ -6,7 +6,7 @@ package controllers
 import (
 	"embed"
 
-	"github.com/openshift/library-go/pkg/assets"
+	"open-cluster-management.io/addon-framework/pkg/assets"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 

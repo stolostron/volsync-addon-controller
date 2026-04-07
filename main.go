@@ -11,12 +11,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/rest"
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/stolostron/volsync-addon-controller/controllers"
 	"github.com/stolostron/volsync-addon-controller/controllers/helmutils"
@@ -29,11 +30,16 @@ var (
 )
 
 func main() {
+	opts := ctrlzap.Options{}
+	opts.BindFlags(goflag.CommandLine)
+
 	pflag.CommandLine.SetNormalizeFunc(utilflag.WordSepNormalizeFunc)
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
 	logs.InitLogs()
 	defer logs.FlushLogs()
+
+	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseFlagOptions(&opts)))
 
 	command := newCommand()
 	fmt.Printf("VolSyncAddonController version: %s\n", command.Version)
@@ -64,11 +70,11 @@ func newCommand() *cobra.Command {
 
 func newControllerCommand() *cobra.Command {
 	var (
-		leaseDuration             = 137 * time.Second
-		renewDeadline             = 107 * time.Second
-		retryPeriod               = 26 * time.Second
-		healthProbeAddress        = ":8081"
-		leaderElectionNamespace   = ""
+		leaseDuration           = 137 * time.Second
+		renewDeadline           = 107 * time.Second
+		retryPeriod             = 26 * time.Second
+		healthProbeAddress      = ":8081"
+		leaderElectionNamespace = ""
 	)
 
 	cmd := &cobra.Command{
@@ -76,7 +82,8 @@ func newControllerCommand() *cobra.Command {
 		Short: "Start the volsync addon controller",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := ctrl.SetupSignalHandler()
-			return startManager(ctx, leaseDuration, renewDeadline, retryPeriod, healthProbeAddress, leaderElectionNamespace)
+			return startManager(ctx, leaseDuration, renewDeadline, retryPeriod,
+				healthProbeAddress, leaderElectionNamespace)
 		},
 	}
 
@@ -102,18 +109,19 @@ func newControllerCommand() *cobra.Command {
 	return cmd
 }
 
-func startManager(ctx context.Context, leaseDuration, renewDeadline, retryPeriod time.Duration, healthProbeAddress, leaderElectionNamespace string) error {
+func startManager(ctx context.Context, leaseDuration, renewDeadline, retryPeriod time.Duration,
+	healthProbeAddress, leaderElectionNamespace string) error {
 	cfg := ctrl.GetConfigOrDie()
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		LeaderElection:                  true,
-		LeaderElectionID:                "volsync-addon-controller-lock",
-		LeaderElectionNamespace:         leaderElectionNamespace,
-		LeaderElectionReleaseOnCancel:   true,
-		LeaseDuration:                   &leaseDuration,
-		RenewDeadline:                   &renewDeadline,
-		RetryPeriod:                     &retryPeriod,
-		HealthProbeBindAddress:          healthProbeAddress,
+		LeaderElection:                true,
+		LeaderElectionID:              "volsync-addon-controller-lock",
+		LeaderElectionNamespace:       leaderElectionNamespace,
+		LeaderElectionReleaseOnCancel: true,
+		LeaseDuration:                 &leaseDuration,
+		RenewDeadline:                 &renewDeadline,
+		RetryPeriod:                   &retryPeriod,
+		HealthProbeBindAddress:        healthProbeAddress,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
@@ -126,9 +134,14 @@ func startManager(ctx context.Context, leaseDuration, renewDeadline, retryPeriod
 		return fmt.Errorf("unable to add readyz check: %w", err)
 	}
 
+	podNamespace := os.Getenv("POD_NAMESPACE")
+	if podNamespace == "" {
+		return fmt.Errorf("POD_NAMESPACE environment variable must be set")
+	}
+
 	if err := mgr.Add(&addonControllerRunnable{
 		config:       cfg,
-		podNamespace: os.Getenv("POD_NAMESPACE"),
+		podNamespace: podNamespace,
 		chartsDir:    embeddedChartsDir,
 	}); err != nil {
 		return fmt.Errorf("unable to add addon controller runnable: %w", err)
@@ -156,7 +169,8 @@ func (r *addonControllerRunnable) Start(ctx context.Context) error {
 		return fmt.Errorf("error loading default images from mch: %w", err)
 	}
 
-	if err := helmutils.InitEmbeddedCharts(r.chartsDir, controllers.DefaultHelmChartKey, volSyncDefaultImagesMap); err != nil {
+	err = helmutils.InitEmbeddedCharts(r.chartsDir, controllers.DefaultHelmChartKey, volSyncDefaultImagesMap)
+	if err != nil {
 		return fmt.Errorf("error loading embedded chart: %w", err)
 	}
 

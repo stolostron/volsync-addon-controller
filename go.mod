@@ -16,9 +16,9 @@ require (
 	k8s.io/component-base v0.35.4
 	k8s.io/klog/v2 v2.140.0
 	open-cluster-management.io/addon-framework v1.1.2
-	open-cluster-management.io/api v1.1.0
+	open-cluster-management.io/api v1.3.0
 	open-cluster-management.io/config-policy-controller v0.18.0
-	open-cluster-management.io/sdk-go v1.1.1
+	open-cluster-management.io/sdk-go v1.3.0
 	sigs.k8s.io/controller-runtime v0.23.3
 )
 
@@ -68,8 +68,8 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/stolostron/kubernetes-dependency-watches v0.10.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.opentelemetry.io/otel v1.41.0 // indirect
-	go.opentelemetry.io/otel/trace v1.41.0 // indirect
+	go.opentelemetry.io/otel v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect

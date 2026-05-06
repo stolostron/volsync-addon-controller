@@ -1,0 +1,65 @@
+ARG ACM_VERSION="unknown"
+
+# Build the addon controller binary
+FROM registry-proxy.engineering.redhat.com/rh-osbs/openshift-golang-builder:v1.25.8 AS builder
+USER root
+
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Copy the go source
+COPY main.go .
+COPY controllers/ controllers/
+
+# Build
+# We don't vendor modules. Enforce that behavior
+ENV GOFLAGS=-mod=readonly
+ENV CGO_ENABLED=1
+ENV GOEXPERIMENT=strictfipsruntime
+ENV BUILD_TAGS="strictfipsruntime"
+ARG ACM_VERSION
+ARG versionFromGit_arg="${ACM_VERSION}"
+ARG commitFromGit_arg="(unknown)"
+RUN GO111MODULE=on CGO_ENABLED=1 go build -tags strictfipsruntime -a -o controller -ldflags "-X main.versionFromGit=${versionFromGit_arg} -X main.commitFromGit=${commitFromGit_arg}" main.go
+
+# Final container
+FROM registry-proxy.engineering.redhat.com/ubi9/ubi-minimal:latest
+
+# RUN microdnf -y --refresh update && \
+#     microdnf clean all
+
+ARG ACM_VERSION
+
+LABEL \
+    name="rhacm2/acm-volsync-addon-controller-rhel9" \
+    cpe="cpe:/a:redhat:acm:${ACM_VERSION}::el9" \
+    com.redhat.component="volsync-addon-controller" \
+    description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
+    operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \
+    io.k8s.description="An addon controller for Red Hat Advanced Cluster Management (ACM) that deploys the VolSync \
+    operator on managed clusters based on ManagedClusterAddOn custom resources (CRs)." \
+    summary="A controller addon for Red Hat ACM that deploys the VolSync operator \
+    on managed clusters using ManagedClusterAddOn CRs." \
+    io.k8s.display-name="Red Hat Advanced Cluster Management Volsync Addon Controller" \
+    io.openshift.tags="acm volsync-addon-controller" \
+    url="https://github.com/stolostron/volsync-addon-controller"
+
+WORKDIR /
+COPY --from=builder /workspace/controller .
+# VolSync helm charts
+COPY helmcharts/ helmcharts/
+# License
+RUN mkdir licenses/
+COPY LICENSE licenses/
+
+# uid/gid: nobody/nobody
+USER 65534:65534
+
+ENV EMBEDDED_CHARTS_DIR=/helmcharts
+
+ENTRYPOINT ["/controller"]

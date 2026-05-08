@@ -23,13 +23,13 @@ jobs:
       ACM_VOLSYNC_HELMCHARTS_DIR: ${{ matrix.branches.ACM_VOLSYNC_HELMCHARTS_DIR }}
     steps:
       - name: "checkout volsync-addon-controller code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: "${{ env.ACM_BRANCH }}"
           path: "volsync-addon-controller"
       
       - name: "checkout volsync code (helm charts only)"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: "backube/volsync"
           ref: "${{ env.VOLSYNC_BRANCH }}"

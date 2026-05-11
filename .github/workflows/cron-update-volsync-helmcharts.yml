@@ -62,7 +62,7 @@ jobs:
           git diff helmcharts
 
       - name: Create Pull Request if helm charts updated
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           path: "volsync-addon-controller"
           add-paths: |

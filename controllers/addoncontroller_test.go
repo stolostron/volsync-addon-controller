@@ -70,7 +70,8 @@ var _ = Describe("Addoncontroller", func() {
 	})
 
 	Describe("addon-framework checks - ClusterManagementAddon updated correctly", func() {
-		It("Should update the ClusterManagementAddon with addon.open-cluster-management.io/lifecycle annotation set to 'self'", func() {
+		It("Should update the ClusterManagementAddon with addon.open-cluster-management.io/lifecycle"+
+			"annotation set to 'self'", func() {
 			// Addon controller should be updating the CMA (via addon-framework)
 			Eventually(func() bool {
 				// re-load ClusterManagementAddon and check that it gets updated
@@ -735,7 +736,8 @@ var _ = Describe("Addoncontroller", func() {
 				})
 			})
 
-			Context("When the volsync ClusterManagementAddOn has a default deployment config w/ node selectors/tolerations", func() {
+			Context("When the volsync ClusterManagementAddOn has a default deployment config w/ "+
+				"node selectors/tolerations", func() {
 				var defaultAddonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig
 				var mcAddon *addonv1alpha1.ManagedClusterAddOn
 				var operatorSubscription *operatorsv1alpha1.Subscription
@@ -835,10 +837,12 @@ var _ = Describe("Addoncontroller", func() {
 						return true
 					}, timeout, interval).Should(BeTrue())
 
-					// Now reload the cma - and confirm that the specHash actually gets updated in the CMA.status.defaultconfigreferences
+					// Now reload the cma - and confirm that the specHash actually gets updated in the
+					// CMA.status.defaultconfigreferences
 					// (this part should get updated by the controllers started by the addon-framework)
 					Eventually(func() bool {
-						err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon), clusterManagementAddon)
+						err := testK8sClient.Get(testCtx, client.ObjectKeyFromObject(clusterManagementAddon),
+							clusterManagementAddon)
 						if err != nil {
 							return false
 						}
@@ -890,12 +894,15 @@ var _ = Describe("Addoncontroller", func() {
 					It("Should create the sub in the manifestwork with the default node selector and tolerations", func() {
 						// re-load the addon - status should be updated with details of the default deploymentConfig
 						Expect(testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)).To(Succeed())
-						Expect(len(mcAddon.Status.ConfigReferences)).To(Equal(1)) // Should be 1 config ref (our default addondeploymentconfig)
+						// Should be 1 config ref (our default addondeploymentconfig)
+						Expect(len(mcAddon.Status.ConfigReferences)).To(Equal(1))
 						defaultConfigRef := mcAddon.Status.ConfigReferences[0]
 						Expect(defaultConfigRef.DesiredConfig).NotTo(BeNil())
 						Expect(defaultConfigRef.DesiredConfig.Name).To(Equal(defaultAddonDeploymentConfig.GetName()))
-						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(defaultAddonDeploymentConfig.GetNamespace()))
-						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal("")) // SpecHash should be set by controller
+						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(
+							defaultAddonDeploymentConfig.GetNamespace()))
+						// SpecHash should be set by controller
+						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal(""))
 
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(defaultNodePlacement.NodeSelector))
@@ -949,12 +956,14 @@ var _ = Describe("Addoncontroller", func() {
 						" the managedclusteraddon, not the defaults", func() {
 						// re-load the addon - status should be updated with details of the default deploymentConfig
 						Expect(testK8sClient.Get(testCtx, client.ObjectKeyFromObject(mcAddon), mcAddon)).To(Succeed())
-						Expect(len(mcAddon.Status.ConfigReferences)).To(Equal(1)) // Should be 1 config ref (our custom addondeploymentconfig)
+						// Should be 1 config ref (our custom addondeploymentconfig)
+						Expect(len(mcAddon.Status.ConfigReferences)).To(Equal(1))
 						defaultConfigRef := mcAddon.Status.ConfigReferences[0]
 						Expect(defaultConfigRef.DesiredConfig).NotTo(BeNil())
 						Expect(defaultConfigRef.DesiredConfig.Name).To(Equal(addonDeploymentConfig.GetName()))
 						Expect(defaultConfigRef.DesiredConfig.Namespace).To(Equal(addonDeploymentConfig.GetNamespace()))
-						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal("")) // SpecHash should be set by controller
+						// SpecHash should be set by controller
+						Expect(defaultConfigRef.DesiredConfig.SpecHash).NotTo(Equal(""))
 
 						Expect(operatorSubscription.Spec.Config).ToNot(BeNil())
 						Expect(operatorSubscription.Spec.Config.NodeSelector).To(Equal(nodePlacement.NodeSelector))
@@ -1168,7 +1177,7 @@ var _ = Describe("Addon Status Update Tests", func() {
 							Type:    workv1.WorkAvailable,
 							Status:  metav1.ConditionTrue,
 							Reason:  "testupdate",
-							Message: "faking avilable for test",
+							Message: "faking available for test",
 						}
 						meta.SetStatusCondition(&manifestWork.Status.Conditions, workAvailableCondition)
 
@@ -1336,7 +1345,8 @@ var _ = Describe("Addon Status Update Tests", func() {
 	})
 })
 
-func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(installedCSVValue string) workv1.ManifestResourceStatus {
+func manifestWorkResourceStatusWithSubscriptionInstalledCSVFeedBack(
+	installedCSVValue string) workv1.ManifestResourceStatus {
 	return workv1.ManifestResourceStatus{
 		Manifests: []workv1.ManifestCondition{
 			{
@@ -1391,6 +1401,7 @@ func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement) *ad
 	return customAddonDeploymentConfig
 }
 
+//nolint:unparam
 func cleanupAddonDeploymentConfig(addonDeploymentConfig *addonv1alpha1.AddOnDeploymentConfig, cleanupNamespace bool) {
 	// Assumes the addondeploymentconfig has its own namespace - cleans up the addondeploymentconfig
 	// and optionally the namespace as well

@@ -277,7 +277,7 @@ func getStartingCSV(addon *addonapiv1alpha1.ManagedClusterAddOn) string {
 
 func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,
 	annotationName, defaultValue string) string {
-	// Allow to be overriden with an annotation
+	// Allow to be overridden with an annotation
 	annotationOverride, ok := addon.Annotations[annotationName]
 	if ok && annotationOverride != "" {
 		return annotationOverride

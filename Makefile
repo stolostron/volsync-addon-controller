@@ -9,7 +9,7 @@ ARCH := $(shell go env GOARCH)
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Helper software versions
-GOLANGCI_VERSION := v2.7.2
+GOLANGCI_VERSION := v2.9.0
 ENVTEST_K8S_VERSION = 1.30
 
 GO_LD_EXTRAFLAGS ?=
@@ -62,7 +62,7 @@ lint: goversion golangci-lint ## Lint source code
 
 .PHONY: golangci-lint
 GOLANGCILINT := $(LOCALBIN)/golangci-lint
-GOLANGCI_URL := https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh
+GOLANGCI_URL := https://raw.githubusercontent.com/golangci/golangci-lint/main/install.sh
 golangci-lint: $(GOLANGCILINT) ## Download golangci-lint
 $(GOLANGCILINT): $(LOCALBIN)
 	curl -sSfL $(GOLANGCI_URL) | sh -s -- -b $(LOCALBIN) $(GOLANGCI_VERSION)

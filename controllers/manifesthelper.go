@@ -35,8 +35,8 @@ func getManifestHelper(embedFS embed.FS, addonClient addonv1alpha1client.Interfa
 		addon:              addon,
 	}
 
-	if shouldDeployVolSyncAsOperator(clusterIsOpenShift, addon) {
-		return &manifestHelperOperatorDeploy{mhc}
+	if shouldDisableVolSyncInstall(addon) {
+		return &manifestHelperNoOp{mhc}
 	}
 
 	// Default is now to deploy as a helm operator
@@ -74,13 +74,12 @@ func (mhc manifestHelperCommon) loadManifestsFromFiles(fileList []string, values
 	return objects, nil
 }
 
-func shouldDeployVolSyncAsOperator(clusterIsOpenShift bool, addon *addonapiv1alpha1.ManagedClusterAddOn) bool {
-	if clusterIsOpenShift && addon.GetAnnotations()[AnnotationVolSyncAddonDeployTypeOverride] ==
-		AnnotationVolSyncAddonDeployTypeOverrideOLMValue {
-		klog.InfoS("Override - deploying VolSync as OLM operator for cluster",
+func shouldDisableVolSyncInstall(addon *addonapiv1alpha1.ManagedClusterAddOn) bool {
+	if addon.GetAnnotations()[AnnotationVolSyncAddonDeployTypeOverride] ==
+		AnnotationVolSyncAddonDeployTypeOverrideDisabledValue {
+		klog.InfoS("Override - disabling VolSync install for cluster",
 			"clusterName", addon.GetNamespace())
 		return true
 	}
-
-	return false // Default, should deploy VolSync via helm charts
+	return false
 }

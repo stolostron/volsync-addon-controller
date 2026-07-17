@@ -1,3 +1,19 @@
+/*
+Copyright 2026.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controllers
 
 import (
@@ -40,19 +56,11 @@ var (
 
 // Change these values to suit your operator
 const (
-	addonName                      = "volsync"
-	operatorName                   = "volsync-product"
-	globalOperatorInstallNamespace = "openshift-operators"
+	addonName    = "volsync"
+	operatorName = "volsync-product"
 
-	// Defaults for ACM-2.13 Operator deploy
-	DefaultCatalogSource          = "redhat-operators"
-	DefaultCatalogSourceNamespace = "openshift-marketplace"
-	DefaultChannel                = "stable-0.17" // aligning ACM-5.0 with stable-0.17
-	DefaultStartingCSV            = ""            // By default no starting CSV - will use the latest in the channel
-	DefaultInstallPlanApproval    = "Automatic"
-
-	// Defaults for ACM-2.13 helm-based deploy
-	DefaultHelmChartKey         = DefaultChannel // named the same as our operator channel
+	// Defaults for ACM-5.0 helm-based deploy
+	DefaultHelmChartKey         = "stable-0.17" // aligning ACM-5.0 with stable-0.17
 	DefaultHelmChartName        = "volsync"
 	DefaultHelmInstallNamespace = "volsync-system"
 
@@ -79,7 +87,7 @@ const (
 const (
 	AnnotationVolSyncAddonDeployTypeOverride = "volsync-addon-deploy-type"
 	// AnnotationVolSyncAddonDeployTypeOverrideHelmValue = "helm"
-	AnnotationVolSyncAddonDeployTypeOverrideOLMValue = "olm"
+	AnnotationVolSyncAddonDeployTypeOverrideDisabledValue = "disabled"
 
 	AnnotationHelmChartKey = "helm-chart-key"
 
@@ -104,10 +112,8 @@ func init() {
 //go:embed manifests
 var embedFS embed.FS
 
-// If operator is deployed to a all namespaces and the operator wil be deployed into the global operators namespace
-// (openshift-operators on OCP), the only thing needed is the Subscription for the operator
-var manifestFilesOperatorDeploy = []string{
-	"manifests/operator/operator-subscription.yaml",
+var manifestFilesNoOp = []string{
+	"manifests/no-op/namespace.yaml",
 }
 
 var manifestFilesHelmDeploy = []string{
@@ -143,19 +149,25 @@ func (h *volsyncAgent) GetAgentAddonOptions() agent.AgentAddonOptions {
 			WorkProber: &agent.WorkHealthProber{
 				ProbeFields: []agent.ProbeField{
 					{
+						// Namespace is the namespace of the manifestwork resource
+						// This is not strictly necessary since the healthchecker only needs to test the deployment,
+						// which will only be active if the namespace exists.
+						// However leaving this probe in there for the no-op scenario,
+						// so that the no-op healthchecker can be called. With the workhealthprober, the healthchecker
+						// is not called if no probe results are returned.
 						ResourceIdentifier: workapiv1.ResourceIdentifier{
-							Group:     "operators.coreos.com",
-							Resource:  "subscriptions",
-							Name:      operatorName,
-							Namespace: "openshift-operators",
+							Group:     "",
+							Resource:  "namespaces",
+							Name:      "*",
+							Namespace: "",
 						},
 						ProbeRules: []workapiv1.FeedbackRule{
 							{
 								Type: workapiv1.JSONPathsType,
 								JsonPaths: []workapiv1.JsonPath{
 									{
-										Name: "installedCSV",
-										Path: ".status.installedCSV",
+										Name: "phase",
+										Path: ".status.phase",
 									},
 								},
 							},
@@ -190,17 +202,6 @@ func subHealthChecker(fieldResults []agent.FieldResult,
 	// ManifestHelper will run the health check
 	mh := getManifestHelper(embedFS, nil /* not needed for heatlh check */, cluster, managedClusterAddOn)
 	return mh.subHealthCheck(fieldResults)
-}
-
-func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,
-	annotationName, defaultValue string,
-) string {
-	// Allow to be overridden with an annotation
-	annotationOverride, ok := addon.Annotations[annotationName]
-	if ok && annotationOverride != "" {
-		return annotationOverride
-	}
-	return defaultValue
 }
 
 func isOpenShift(cluster *clusterv1.ManagedCluster) bool {

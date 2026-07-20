@@ -2186,35 +2186,35 @@ var _ = Describe("Addon Status Update Tests", func() {
 func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
 	replicas, readyReplicas *int64,
 ) workv1.ManifestResourceStatus {
-	mrStatus := workv1.ManifestResourceStatus{
-		Manifests: []workv1.ManifestCondition{
-			{
-				ResourceMeta: workv1.ManifestResourceMeta{
-					Group:     "apps",
-					Kind:      "Deployment",
-					Name:      "volsync",
-					Namespace: "volsync-system",
-					Resource:  "deployments",
-					Version:   "v1",
-				},
-				StatusFeedbacks: workv1.StatusFeedbackResult{
-					Values: []workv1.FeedbackValue{
-						{
-							Name: "Replicas",
-							Value: workv1.FieldValue{
-								Type:    "Integer",
-								Integer: replicas,
-							},
-						},
+	// Simulate the status feedback for the namespace in the manifestwork
+	// Our actual health checker doesn't check this, but it will be returned in the status feedback
+	namespaceManifestCondition := manifestConditionWithNamespaceActive()
+
+	deploymentManifestCondition := workv1.ManifestCondition{
+		ResourceMeta: workv1.ManifestResourceMeta{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Name:      "volsync",
+			Namespace: "volsync-system",
+			Resource:  "deployments",
+			Version:   "v1",
+		},
+		StatusFeedbacks: workv1.StatusFeedbackResult{
+			Values: []workv1.FeedbackValue{
+				{
+					Name: "Replicas",
+					Value: workv1.FieldValue{
+						Type:    "Integer",
+						Integer: replicas,
 					},
 				},
-				Conditions: []metav1.Condition{},
 			},
 		},
+		Conditions: []metav1.Condition{},
 	}
 
 	if readyReplicas != nil {
-		mrStatus.Manifests[0].StatusFeedbacks.Values = append(mrStatus.Manifests[0].StatusFeedbacks.Values,
+		deploymentManifestCondition.StatusFeedbacks.Values = append(deploymentManifestCondition.StatusFeedbacks.Values,
 			workv1.FeedbackValue{
 				Name: "ReadyReplicas",
 				Value: workv1.FieldValue{
@@ -2225,7 +2225,49 @@ func manifestWorkResourceStatusWithVolSyncDeploymentFeedBack(
 		)
 	}
 
+	mrStatus := workv1.ManifestResourceStatus{
+		Manifests: []workv1.ManifestCondition{
+			namespaceManifestCondition,
+			deploymentManifestCondition,
+		},
+	}
+
 	return mrStatus
+}
+
+func manifestWorkResourceStatusWithNamespaceAvailable() workv1.ManifestResourceStatus {
+	manifestConditionNamespaceActive := manifestConditionWithNamespaceActive()
+	return workv1.ManifestResourceStatus{
+		Manifests: []workv1.ManifestCondition{
+			manifestConditionNamespaceActive,
+		},
+	}
+}
+
+func manifestConditionWithNamespaceActive() workv1.ManifestCondition {
+	activeStr := "Active"
+	return workv1.ManifestCondition{
+		ResourceMeta: workv1.ManifestResourceMeta{
+			Group:     "",
+			Kind:      "Namespace",
+			Name:      "volsync-system",
+			Namespace: "",
+			Resource:  "namespaces",
+			Version:   "v1",
+		},
+		StatusFeedbacks: workv1.StatusFeedbackResult{
+			Values: []workv1.FeedbackValue{
+				{
+					Name: "phase",
+					Value: workv1.FieldValue{
+						Type:   "String",
+						String: &activeStr,
+					},
+				},
+			},
+		},
+		Conditions: []metav1.Condition{},
+	}
 }
 
 func createAddonDeploymentConfig(nodePlacement *addonv1alpha1.NodePlacement,

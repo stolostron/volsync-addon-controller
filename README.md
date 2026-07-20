@@ -191,6 +191,31 @@ spec:
       value: quay.io/myrepo/volsync:latest
 ```
 
+## Advanced usage only - Example of disabling the install of volsync as a helm chart on the managed cluster
+
+If we ever need to disable the install of VolSync on a managed cluster, this can be done manually by simply not
+creating a ManagedClusterAddOn and then manually instaling VolSync on the managed cluster.  However if the
+ManagedClusterAddOn is required (or automatically created by another operator such as ODF), then an annotation
+`volsync-addon-deploy-type` with value `disabled` can be added to the ManagedClusterAddOn to indicate that the
+install of VolSync should be disabled on the managed cluster.
+
+This will still create the `volsync-system` namespace on the managed cluster, however nothing will be installed there.
+
+At this point a user could manually install VolSync on the managed cluster if desired.
+
+Example:
+
+```yaml
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ManagedClusterAddOn
+metadata:
+  name: volsync
+  namespace: <managed_cluster_namespace>
+  annotations:
+    volsync-addon-deploy-type: "disabled"
+spec: {}
+```
+
 ## Development
 
 ## Installation

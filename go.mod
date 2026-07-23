@@ -9,11 +9,11 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	helm.sh/helm/v3 v3.21.0
-	k8s.io/api v0.36.2
+	k8s.io/api v0.36.3
 	k8s.io/apiextensions-apiserver v0.36.2
-	k8s.io/apimachinery v0.36.2
-	k8s.io/client-go v0.36.2
-	k8s.io/component-base v0.36.2
+	k8s.io/apimachinery v0.36.3
+	k8s.io/client-go v0.36.3
+	k8s.io/component-base v0.36.3
 	k8s.io/klog/v2 v2.140.0
 	open-cluster-management.io/addon-framework v1.1.2
 	open-cluster-management.io/api v1.1.0
@@ -110,5 +110,5 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.3 // indirect
 )

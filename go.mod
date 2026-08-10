@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
-	github.com/operator-framework/api v0.44.0
+	github.com/operator-framework/api v0.45.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	helm.sh/helm/v3 v3.21.3

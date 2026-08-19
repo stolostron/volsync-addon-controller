@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"embed"
+	"regexp"
 	"strings"
+
+	"k8s.io/klog/v2"
 
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -193,15 +196,28 @@ func subHealthChecker(fieldResults []agent.FieldResult,
 	return mh.subHealthCheck(fieldResults)
 }
 
+// annotationOverrideValueRE constrains annotation override values to a charset
+// that is safe to render as a bare YAML scalar. The values returned by
+// getAnnotationOverrideOrDefault are interpolated into manifest templates via
+// text/template (no YAML-aware escaping), so newlines, colons, quotes or other
+// YAML metacharacters in the annotation would let the caller inject additional
+// fields into the rendered manifest.
+var annotationOverrideValueRE = regexp.MustCompile(`^[A-Za-z0-9._-]{1,128}$`)
+
 func getAnnotationOverrideOrDefault(addon *addonapiv1alpha1.ManagedClusterAddOn,
 	annotationName, defaultValue string,
 ) string {
 	// Allow to be overridden with an annotation
 	annotationOverride, ok := addon.Annotations[annotationName]
-	if ok && annotationOverride != "" {
-		return annotationOverride
+	if !ok || annotationOverride == "" {
+		return defaultValue
 	}
-	return defaultValue
+	if !annotationOverrideValueRE.MatchString(annotationOverride) {
+		klog.InfoS("Ignoring ManagedClusterAddOn annotation override with invalid value",
+			"annotation", annotationName, "addonNamespace", addon.GetNamespace())
+		return defaultValue
+	}
+	return annotationOverride
 }
 
 func isOpenShift(cluster *clusterv1.ManagedCluster) bool {

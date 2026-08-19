@@ -319,6 +319,21 @@ var _ = Describe("Addoncontroller - legacy OLM deployment tests", func() {
 							controllers.DefaultCatalogSourceNamespace))
 					})
 				})
+
+				Context("When an annotation override contains YAML metacharacters", func() {
+					BeforeEach(func() {
+						// Annotation values are rendered into the Subscription manifest via
+						// text/template; an embedded newline would otherwise let the
+						// annotation author inject sibling spec fields (e.g. spec.config).
+						mcAddon.Annotations[controllers.AnnotationStartingCSVOverride] =
+							"volsync-product.v0.16.0\n  config:\n    env:\n    - name: X\n      value: y"
+					})
+					It("Should ignore the invalid annotation value and use the default", func() {
+						Expect(operatorSubscription.Spec.StartingCSV).To(Equal(controllers.DefaultStartingCSV))
+						// The enclosing JustBeforeEach already asserts Spec.Config == nil,
+						// proving no spec.config block was injected into the rendered YAML.
+					})
+				})
 			})
 		})
 

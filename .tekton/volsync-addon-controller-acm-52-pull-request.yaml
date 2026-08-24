@@ -40,7 +40,7 @@ spec:
     value: Dockerfile.rhtap
   - name: build-args
     value:
-    - ACM_VERSION=5.1
+    - ACM_VERSION=5.2
     - "commitFromGit_arg={{revision}}"
   - name: path-context
     value: .

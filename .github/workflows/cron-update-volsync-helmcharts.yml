@@ -14,9 +14,14 @@ jobs:
       matrix:
         branches:
           #
-          # ACM 5.0 = VolSync 0.17
-          # NOTES: - ACM br main is ffwding to release-5.0 atm
+          # ACM 5.1 = VolSync 0.18 (v0.18 not being built yet, so leaving as 0.17 for the moment)
+          # NOTES: - ACM br main is ffwding to release-5.1 atm
           - ACM_BRANCH: "main"
+            VOLSYNC_BRANCH: "release-0.17" # VolSync release branch
+            ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.17" # this name matches the operator channel name
+          #
+          # ACM 5.0 = VolSync 0.17
+          - ACM_BRANCH: "release-5.0"
             VOLSYNC_BRANCH: "release-0.17" # VolSync release branch
             ACM_VOLSYNC_HELMCHARTS_DIR: "stable-0.17" # this name matches the operator channel name
           #

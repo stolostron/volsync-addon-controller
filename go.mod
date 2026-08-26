@@ -8,7 +8,7 @@ require (
 	github.com/operator-framework/api v0.45.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	helm.sh/helm/v3 v3.21.4
+	helm.sh/helm/v4 v4.2.4
 	k8s.io/api v0.36.3
 	k8s.io/apiextensions-apiserver v0.36.3
 	k8s.io/apimachinery v0.36.3
